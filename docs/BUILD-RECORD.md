@@ -59,8 +59,8 @@ A fresh reviewer read the Oct 28 transcript, Justin's instructions and this pack
 | Internal build jargon in files Jesse reads | Low | Removed |
 | A digest timestamp written as "[17:xx]"; "new digs" read as an office | Low | Corrected in the digest |
 
-## Public (2026-10-29)
+## Public (2026-10-31)
 
-Pushed to GitHub privately, then made public the same day on Justin's word ("for now"), as one squashed commit. Before going public, Jesse's own words about where the business stands moved out of the repo into `context/owner.md` (handed over privately at the install), and those phrases joined the blocked-terms list so `cb verify` keeps them out.
+Pushed to GitHub privately on 2026-10-29, then made public on 2026-10-31 on Justin's word ("for now"), as one squashed commit. Before going public, Jesse's own words about where the business stands moved out of the repo into `context/owner.md` (handed over privately at the install), and those phrases joined the blocked-terms list so `cb verify` keeps them out.
 
 Before every push: `cb verify` with the blocked terms, and confirm nothing under `private/` or `context/`, and no `CLIENT-CONTEXT.md`, is tracked.
