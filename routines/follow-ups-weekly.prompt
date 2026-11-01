@@ -1,0 +1,18 @@
+NAME: follow-ups-weekly
+OWNER: follow-ups
+WHERE: jesse-pc
+WHEN: Every Friday at 7:53 AM (NZ time)
+CRON: 53 7 * * 5
+CRON_TZ: Pacific/Auckland (local time on Jesse's PC)
+SKILLS: follow-ups-report
+MILESTONE: M2
+STATUS: Created paused. Switched on only after Jesse says yes.
+---
+Switch check: read state/routines-on.md. If "follow-ups-weekly" isn't listed as "on" or "test", log SKIPPED_OFF and stop.
+Test mode: if listed as "test", mark the report TEST.
+Stop check: if state/STOP exists, log SKIPPED_STOPPED and stop.
+Isolation guard: work only in this workspace. If context/owner.md is missing, log NO_CLIENT_SOURCE and stop.
+Lean run: read only this week's GoHighLevel conversations and new contacts.
+Run log: append to runs/<YYYY-MM>/<date>-follow-ups-weekly.md: EXECUTED + one-line result, or FAILED + reason, and Sources read.
+
+Run skills/follow-ups-report/SKILL.md (charter: agents/06-follow-ups.md), read-only. Write data/follow-ups-report.md: new leads by source, follow-ups sent and their status (delivered, opened, replied), and who to call. List the report in queue/needs-jesse.md.

@@ -1,0 +1,18 @@
+NAME: money-snapshot
+OWNER: money
+WHERE: jesse-pc
+WHEN: Every weekday at 7:41 AM (NZ time), before the morning brief
+CRON: 41 7 * * 1-5
+CRON_TZ: Pacific/Auckland (local time on Jesse's PC)
+SKILLS: money-snapshot
+MILESTONE: M1
+STATUS: Created paused. Switched on only after Jesse says yes.
+---
+Switch check: read state/routines-on.md. If "money-snapshot" isn't listed as "on" or "test", log SKIPPED_OFF and stop.
+Test mode: if listed as "test", mark the snapshot TEST.
+Stop check: if state/STOP exists, log SKIPPED_STOPPED and stop.
+Isolation guard: work only in this workspace. If context/owner.md is missing, log NO_CLIENT_SOURCE and stop.
+Lean run: read only the Xero figures the snapshot needs.
+Run log: append to runs/<YYYY-MM>/<date>-money-snapshot.md: EXECUTED + one-line result, or FAILED + reason, and Sources read.
+
+Run skills/money-snapshot/SKILL.md (charter: agents/04-money.md). Read Xero (read-only): bank balances, aged receivables, bills due this week and next, this month's money in and out. Write data/money-snapshot.md with every figure's source and the time read. If Xero can't be read, write UNKNOWN for each figure, never zero.

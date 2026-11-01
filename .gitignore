@@ -1,0 +1,23 @@
+# Private and machine state: never in git
+context/
+.env
+.env.*
+queue/*.md
+queue/drafts/**
+!queue/drafts/.gitkeep
+runs/
+state/
+data/
+modules/
+vault/daily/*
+vault/decisions/*
+vault/people/*
+vault/partners/*
+vault/customers/*
+!vault/**/.gitkeep
+**/.obsidian/workspace*
+*.zip
+private/
+CLIENT-CONTEXT.md
+client-context/*.md
+!client-context/CLIENT-CONTEXT.template.md

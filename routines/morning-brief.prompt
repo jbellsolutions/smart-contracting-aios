@@ -1,0 +1,18 @@
+NAME: morning-brief
+OWNER: chief-of-staff
+WHERE: jesse-pc
+WHEN: Every weekday at 7:47 AM (NZ time), after the Revenue Partner's 07:30 drafts
+CRON: 47 7 * * 1-5
+CRON_TZ: Pacific/Auckland (local time on Jesse's PC)
+SKILLS: morning-brief
+MILESTONE: M0
+STATUS: Created paused. Switched on only after Jesse says yes.
+---
+Switch check: read state/routines-on.md. If "morning-brief" isn't listed as "on" or "test", log SKIPPED_OFF and stop.
+Test mode: if listed as "test", mark the brief TEST.
+Stop check: if state/STOP exists, write the brief to the vault only and log SKIPPED_STOPPED.
+Isolation guard: work only in this workspace. If context/owner.md is missing, log NO_CLIENT_SOURCE and stop.
+Lean run: read only what changed since the last brief.
+Run log: append to runs/<YYYY-MM>/<date>-chief-of-staff-morning-brief.md: EXECUTED + one-line result, or FAILED + reason, and Sources read.
+
+Run skills/morning-brief/SKILL.md. Show the brief in the Chief of Staff chat and save it to today's vault/daily note.
