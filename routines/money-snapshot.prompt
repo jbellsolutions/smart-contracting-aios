@@ -1,5 +1,6 @@
 NAME: money-snapshot
 OWNER: money
+KIND: active
 WHERE: jesse-pc
 WHEN: Every weekday at 7:41 AM (NZ time), before the morning brief
 CRON: 41 7 * * 1-5

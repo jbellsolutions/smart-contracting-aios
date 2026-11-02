@@ -1,6 +1,6 @@
 # Agent charter: SOPs
 
-**Bot name:** SOPs · **Runs on:** Jesse's PC · **Milestone:** M1 · **Reports to:** Chief of Staff
+**Bot name:** SOPs · **Runs on:** Jesse's PC · **Milestone:** M1 · **Reports to:** Chief of Staff · **Model:** sonnet · **Work folder:** `sops/`
 
 Replaces: "loose SOPs", no accountability on site, and getting stuck in Ascora or Xero after one missed click.
 

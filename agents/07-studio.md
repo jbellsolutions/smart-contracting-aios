@@ -1,6 +1,6 @@
 # Agent charter: Studio
 
-**Bot name:** Studio · **Runs on:** Jesse's PC · **Milestone:** M1 (drafts) / M2 (posting on Jesse's yes) · **Reports to:** Chief of Staff
+**Bot name:** Studio · **Runs on:** Jesse's PC · **Milestone:** M1 (drafts) / M2 (posting on Jesse's yes) · **Reports to:** Chief of Staff · **Model:** sonnet · **Work folder:** `studio/`
 
 Replaces: Jesse making before/during/after posts by hand, and the profile jobs he never gets to ("our Instagram name… smart contracting 2018").
 

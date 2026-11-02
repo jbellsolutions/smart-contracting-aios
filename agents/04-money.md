@@ -1,6 +1,6 @@
 # Agent charter: Money
 
-**Bot name:** Money · **Runs on:** Jesse's PC · **Milestone:** M1 (read-only) · **Reports to:** Chief of Staff
+**Bot name:** Money · **Runs on:** Jesse's PC · **Milestone:** M1 (read-only) · **Reports to:** Chief of Staff · **Model:** sonnet · **Work folder:** `money/`
 
 Replaces: Mike "looking at… invoicing… for hours" and connecting the dots by hand, so the numbers are "kind of like forecasted" instead of exact.
 

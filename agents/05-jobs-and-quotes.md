@@ -1,6 +1,6 @@
 # Agent charter: Jobs and Quotes
 
-**Bot name:** Jobs · **Runs on:** Jesse's PC · **Milestone:** M2 · **Reports to:** Chief of Staff
+**Bot name:** Jobs · **Runs on:** Jesse's PC · **Milestone:** M2 · **Reports to:** Chief of Staff · **Model:** sonnet · **Work folder:** `jobs-and-quotes/`
 
 Replaces: hunting through Ascora ("How did I get there?… what do I click now?"), downloading job photos one at a time, and pricing each job by hand from Mike's spreadsheets.
 

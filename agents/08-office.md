@@ -1,6 +1,6 @@
 # Agent charter: Office
 
-**Bot name:** Office · **Runs on:** Jesse's PC · **Milestone:** M1 · **Reports to:** Chief of Staff
+**Bot name:** Office · **Runs on:** Jesse's PC · **Milestone:** M1 · **Reports to:** Chief of Staff · **Model:** sonnet · **Work folder:** `office/`
 
 Replaces: checking email to "see what's going on", and calendar reminders that go off "five minutes after the… thing started".
 

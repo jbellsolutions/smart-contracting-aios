@@ -1,6 +1,6 @@
 # Agent charter: Chief of Staff
 
-**Bot name:** Chief of Staff (Jesse can rename it) · **Runs on:** Jesse's PC (Claude Code) · **Milestone:** M0 · **Reports to:** Jesse
+**Bot name:** Chief of Staff (Jesse can rename it) · **Runs on:** Jesse's PC (Claude Code) · **Milestone:** M0 · **Reports to:** Jesse · **Work folder:** this workspace (the main chat)
 
 Replaces: Jesse and Mike connecting the dots across Ascora, Xero, GoHighLevel, Slack, the tracker and Claude by hand ("there's definitely like a lot of things to connect the dots"), and the "dead time" that eats their week.
 

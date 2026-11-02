@@ -1,32 +1,38 @@
-# Start here: installing the AIOS (Monday session)
+# Start here
 
-For Justin's team and Jesse, together. Each step says how to check it worked. Nothing here sends anything to anyone.
+This is Smart Contracting's AI operating system: one Claude Code chat, the Chief of Staff, that runs the business with Jesse and Mike. It installs itself. Jesse only does what a person has to.
 
-## Before the session (Jesse's PC)
-1. **Claude desktop app** with the Code tab, signed in to their Claude Team plan. Check: open a Code session and say hello.
-2. **Git for Windows** (Claude Code on Windows uses it). Check: ask Claude Code to run `git --version`.
-3. **Node.js (LTS)**, for the Xero connection at M1. Check: `node --version`.
-4. **Obsidian** (obsidian.md). Check: it opens.
-5. Optional: **Wispr Flow**, for talking instead of typing.
+## 1. Drop it in (one paste)
+On Jesse's PC, open the Claude app → Code, start a new session in your home folder, and paste:
 
-## Install (M0)
-1. **Get the workspace.** Justin's team sends `smart-contracting-aios` (a zip, or the repo link). Put it at `C:\Users\<Jesse>\Smart-Contracting-AIOS`, not in Documents or anything OneDrive syncs (OneDrive would sync the vault and `.git`). Open a Claude Code session in that folder. Check: ask "what's in this folder?" and it describes the Chief of Staff and the team from `AGENTS.md`.
-2. **Add the partner-program module.** Claude Code runs:
-   `git clone https://github.com/jbellsolutions/smart-contracting-dream-team modules/partner-program`
-   Check: `modules/partner-program/START-HERE.md` exists.
-3. **Add the private context.** Justin's team gives Jesse three files privately (a DM, not the shared channel): `owner.md`, `asks.md`, `standing-approvals.md`. They go in a new `context/` folder. Check: ask "who are Jesse and Mike?" and it answers from `context/owner.md`.
-4. **Connect Slack.** In the Claude app, connect Slack (Jesse signs in himself) and allow it to read #mike-and-jesse-drainage and Jesse's DM with the Revenue Partner, where its routines post. Check: the Chief of Staff quotes the Revenue Partner's latest post.
-5. **Upgrade the Revenue Partner**, if it isn't done yet: say "upgrade the Revenue Partner". The module's `upgrade-revenue-partner` skill does it step by step, with Jesse's yes at each prompt.
-6. **The outreach house-style fix** (Justin's team, with Jesse): one note the Revenue Partner's outreach skill reads for every audience, so a fix Jesse makes once carries over (ask 84).
-7. **Set me up.** Say "set me up": `skills/getting-started/SKILL.md` confirms the owner facts, opens the vault in Obsidian, starts the tool map, sets up the radar's groups, and offers the morning brief. Switching the brief on also registers it as a scheduled task in the Claude app; writing `state/routines-on.md` alone runs nothing.
+> Clone https://github.com/jbellsolutions/smart-contracting-aios into my home folder as Smart-Contracting-AIOS (not Documents or OneDrive). If git isn't installed, install it with winget first. Then tell me how to open a new Claude Code session in that folder.
 
-**M0 is done when** the Chief of Staff writes the first daily note and answers "what's going on?" from the Revenue Partner's real Slack posts.
+Then open a new session in `Smart-Contracting-AIOS`, say yes if the app asks whether you trust the folder, and say **install**.
 
-## After the session (M1, one connection at a time)
+## 2. The chat installs itself
+`skills/install/SKILL.md` runs each step and proves it worked, in an install log in `runs/`. Jesse's part:
+- allow the Windows prompts (Git, Node.js, Obsidian, if they're missing) and restart the Claude app once after Node;
+- save the three private files Justin's team DMs him (`owner.md`, `asks.md`, `standing-approvals.md`) into the `context` folder;
+- open the `vault` folder in Obsidian;
+- sign in to Slack in the Claude app's connectors;
+- type two keys into his own PowerShell window (`node tools/add_secret.mjs ORGO_API_KEY` and `ORGO_COMPUTER`). Never into the chat.
+
+**Installed means** the install log shows every step passed, including the two guard tests (a send refused while `state/STOP` exists, and a fake key refused), and the Orgo link reads the Revenue Partner's computer.
+
+## 3. Then it builds itself
+- **"Set me up"**: your details, your tools, the open questions, the first morning brief (`skills/getting-started`).
+- **"What should we build next?"**: a ranked plan from everything you've asked for (`skills/roadmap`).
+- **"Build me an agent for …"**: it designs and builds a new specialist to this workspace's standard, after you approve the scope (`skills/build`).
+- **"Is the Revenue Partner OK?" / "Hold sends"**: straight to its Orgo computer (`skills/orgo-link`).
+
+## Before sends go back on (M0 gate)
+The Revenue Partner's sending stays off until every check in `projects/revenue-partner-sends/SPEC.md` passes: one sender, a real stop switch, the right clock, only the latest draft approvable, each email once, the gateway staying up.
+
+## After the install (M1, one connection at a time)
 Each one is signed in by Jesse or Mike themselves, never with a password typed into chat.
-- **Calendars:** if both are on Outlook (OPEN_QUESTIONS A8), Jesse and Mike share calendars with each other ("Can view all details").
-- **Xero, read-only (Mike's yes):** Mike creates a Xero Custom Connection with read scopes only (every scope ends in `.read`; Xero lists it at NZD 10/month ex GST). The official Xero MCP server is added to Claude Code with `XERO_SCOPES` set to exactly those read scopes; without that setting the server asks for write scopes. Check: `money-snapshot` runs its read-only check and reads one balance.
+- **Calendars:** both on Outlook. Jesse and Mike share calendars with each other ("Can view all details"), then connect Outlook in the Claude app.
+- **Xero, read-only (Mike's yes):** Mike creates a Xero Custom Connection with read scopes only (every scope ends in `.read`; Xero lists it at NZD 10/month ex GST). The official Xero MCP server is added with `XERO_SCOPES` set to exactly those read scopes; without that setting the server asks for write scopes. Check: `money-snapshot` runs its read-only check and reads one balance.
 - **Radar:** say "run the radar" with Facebook logged in, in the browser Claude uses.
-- **SOPs:** drop the screenshots in and say "make an SOP from these".
+- **SOPs:** drop the SOP PDFs and screenshots in and say "make an SOP from these".
 
-Stuck at any step: send Justin a voice note in Slack with what step and what it said.
+Stuck at any step: send Justin a voice note in Slack saying which step and what it said.

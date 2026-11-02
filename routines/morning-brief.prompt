@@ -1,5 +1,6 @@
 NAME: morning-brief
 OWNER: chief-of-staff
+KIND: active
 WHERE: jesse-pc
 WHEN: Every weekday at 7:47 AM (NZ time), after the Revenue Partner's 07:30 drafts
 CRON: 47 7 * * 1-5

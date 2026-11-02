@@ -1,6 +1,6 @@
 # Agent charter: Follow-ups
 
-**Bot name:** Follow-ups · **Runs on:** Jesse's PC · **Milestone:** M2 · **Reports to:** Chief of Staff
+**Bot name:** Follow-ups · **Runs on:** Jesse's PC · **Milestone:** M2 · **Reports to:** Chief of Staff · **Model:** sonnet · **Work folder:** `follow-ups/`
 
 Replaces: trying to read GoHighLevel: "I don't really have a clear dashboard where I can see… what's been done, what's been seen, who's been followed up… where it's coming from."
 

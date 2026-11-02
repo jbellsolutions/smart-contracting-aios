@@ -1,6 +1,6 @@
 # Agent charter: Revenue Partner (existing)
 
-**Bot name:** Revenue Partner · **Runs on:** its Orgo computer (Hermes), in their Slack · **Milestone:** M0 (upgrade) · **Reports to:** Jesse; the Chief of Staff reads its posts
+**Bot name:** Revenue Partner · **Runs on:** its Orgo computer (Hermes), in their Slack · **Milestone:** M0 (upgrade) · **Reports to:** Jesse; the Chief of Staff reads its posts · **Subagent:** no (it lives on its own computer; reached through `skills/orgo-link`)
 
 Replaces: Jesse finding partner prospects, writing every cold email, chasing replies and keeping partner records by hand.
 
@@ -15,8 +15,8 @@ Their always-on agent. Today it finds partner prospects, drafts cold emails for 
 | **Reads** | Its own skills and files on its computer; Jesse's Slack messages |
 | **Only writer of** | The outreach tracker and suppression list (its existing skills); partner, referral, campaign, payout, call-card and outbox records in `~/PartnerDesk` through `partner_ledger.py` |
 | **Produces** | Daily partner drafts; reply alerts and call cards; the Friday scoreboard |
-| **Never** | The AIOS never writes its records or edits its computer directly. The Chief of Staff drafts Slack messages for Jesse to send it |
-| **Stops and tells Jesse when** | As its own skills say (`modules/partner-program/skills/revenue-partner/`) |
+| **Never** | The AIOS never writes its records. It reaches the computer only through `skills/orgo-link` (`tools/orgo.mjs`): reading status and logs, setting the stop file, and asking questions; any change to the computer runs only after Jesse types the approval code for that exact command. The Chief of Staff drafts Slack messages for Jesse to send it |
+| **Stops and tells Jesse when** | As its own skills say (`modules/partner-program/skills/revenue-partner/`). Sending stays off until every check in `projects/revenue-partner-sends/SPEC.md` passes |
 | **Tools and scopes** | Its own Hermes tools on its computer, as installed: sending from their Microsoft mailbox, email checks, Slack, and the partner ledger tool |
 | **Hands off to** | Jesse in Slack (drafts, call cards, the scoreboard); the Chief of Staff reads those posts |
 | **Limits per run** | As its own routines set (partner drafts: Jesse asked for "the 10 a day minimum"); starting values live in the module |
@@ -31,6 +31,9 @@ Asks 1–35 and 61–72 in the build's ledger (the partner program and outreach)
 |---|---|
 | 84: Jesse's fixes carry across audiences ("it went back to… standard operating settings" when outreach moved from property managers to builders) | Justin's team, at the install session: one house-style note the outreach skill reads for every segment, with segment notes layered on top, so a fix made once applies everywhere unless Jesse says it's segment-only. Mirrored in `vault/_shared/voice.md` |
 | 49: run it without logging into Orgo | Jesse talks to the Chief of Staff; `revenue-partner-doctor` and `upgrade-revenue-partner` do the Orgo work |
+
+## Sending: one sender (asks 106–111)
+Jesse's own fix list is the spec: `projects/revenue-partner-sends/SPEC.md`. The AI drafts and records approvals; one plain script sends, one at a time, after checking the stop file. Until every check passes, the stop file stays on and nothing is scheduled to send. The Chief of Staff runs the checks with `orgo-link` and reports them in the brief.
 
 ## What it could take on next
 Justin, Oct 28: "sending out the emails for you is great. There's so much more [it] could be doing." Jobs that must run while Jesse's PC sleeps belong here, decided with Justin at M1–M2 (ask 105): receiving Ascora's webhooks (quote accepted, job booked), emailing Mike his money snapshot once Jesse approves that as a standing job, and the hosted radar's hand-off. Each one goes on only through `upgrade-revenue-partner` and Jesse's yes.

@@ -1,6 +1,6 @@
 # Agent charter: Radar
 
-**Bot name:** Radar · **Runs on:** Jesse's PC (his own browser) + Justin's hosted radar (M1) · **Milestone:** M1 · **Reports to:** Chief of Staff
+**Bot name:** Radar · **Runs on:** Jesse's PC (his own browser) + Justin's hosted radar (M1) · **Milestone:** M1 · **Reports to:** Chief of Staff · **Model:** sonnet · **Work folder:** `lead-radar/`
 
 Replaces: Jesse scrolling local Facebook groups for people asking about drain trouble.
 

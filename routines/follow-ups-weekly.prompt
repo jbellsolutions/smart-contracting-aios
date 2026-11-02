@@ -1,5 +1,6 @@
 NAME: follow-ups-weekly
 OWNER: follow-ups
+KIND: active
 WHERE: jesse-pc
 WHEN: Every Friday at 7:53 AM (NZ time)
 CRON: 53 7 * * 5
