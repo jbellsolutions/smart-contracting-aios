@@ -15,8 +15,9 @@ description: Hands one job from Jesse to the one specialist that owns it, and br
 - [ ] If the owner is reserved (90+) or its milestone isn't switched on, say so in one line, log the ask, and offer what can be done now.
 - [ ] Check `state/STOP`. If it exists, draft only and say so.
 - [ ] Hand off with a job note: what Jesse said (quoted), the outcome he wants, a deadline only if he gave one, and what must come back. Call the subagent, or append the note to `queue/jobs/<role>.md`.
-- [ ] Partner-program and radar jobs: use the Workshop skill in `modules/partner-program/.claude/skills/` (see `AGENTS.md`). Revenue Partner jobs: draft the Slack message for Jesse to send it, or use `upgrade-revenue-partner`.
+- [ ] Partner-program and radar jobs: use the Workshop skill in `modules/partner-program/.claude/skills/` (see `AGENTS.md`). Revenue Partner jobs: draft the Slack message for Jesse to send it, check its computer with `orgo-link`, or use `upgrade-revenue-partner`. A job no specialist owns yet: offer `roadmap` or `build`.
 - [ ] When the result is back, check it against the specialist's "Done means". Anything outward goes to `queue/needs-jesse.md` as one decision with the draft linked and the exact reply words.
+- [ ] When Jesse says yes to a draft, record his words on the item with the draft's SHA-256. The owner may act only on a ticked item whose draft still has that hash; an edited draft goes back in the queue.
 - [ ] Log the run in `runs/<YYYY-MM>/`.
 
 ## Output

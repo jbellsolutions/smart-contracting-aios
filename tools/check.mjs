@@ -14,6 +14,7 @@ const bad = (file, why) => problems.push(`${file}: ${why}`);
 const has = (...p) => fs.existsSync(path.join(ROOT, ...p));
 const rd = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf8");
 const ls = (d, re) => (has(d) ? fs.readdirSync(path.join(ROOT, d)).filter((f) => re.test(f)).sort() : []);
+const MARKER = new RegExp("<" + "!-- (WRITE|FILL)"); // built here so this file doesn't contain the marker itself
 const front = (t) => { const m = t.match(/^---\r?\n([\s\S]*?)\r?\n---/); return m ? m[1] : ""; };
 
 // Entry files
@@ -99,9 +100,9 @@ if (git.status === 0) {
   const keyShapes = /\bsk-[A-Za-z0-9_-]{20,}|\b(?:sk|rk)_live_[A-Za-z0-9]{10,}|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bgh[pousr]_[A-Za-z0-9]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;
   for (const f of git.stdout.split("\0").filter(Boolean)) {
     if (/\.(png|jpe?g|pdf|zip|gif)$/i.test(f) || !has(f)) continue;
-    const t = rd(f).replaceAll("sk-test-aaaaaaaaaaaaaaaaaaaaaaaa", ""); // the install's deliberately fake key
+    const t = rd(f);
     if (keyShapes.test(t) && !f.startsWith("tools/hooks/") && f !== "tools/orgo.mjs") bad(f, "holds something shaped like a key");
-    if (/<!-- (WRITE|FILL) -->/.test(t) && !f.startsWith("docs/_templates/") && f !== "tools/check.mjs") bad(f, "has an unfilled <!-- WRITE --> or <!-- FILL --> marker");
+    if (MARKER.test(t) && !f.startsWith("docs/_templates/")) bad(f, "has an unfilled WRITE or FILL template marker");
   }
 } else warn.push("git not found: skipped the .gitignore and key checks");
 

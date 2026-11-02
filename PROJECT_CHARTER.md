@@ -7,8 +7,8 @@
 | Platform | Claude Code on Jesse's Windows PC (the front door) + the Revenue Partner, their existing Hermes agent on Orgo (always-on jobs) + Justin's hosted radar (M1) |
 | Time zone | Pacific/Auckland |
 | Lead bot | Chief of Staff |
-| Standard | Justin's team's package standard (client-build/1) |
-| Sources | Calls Sep 16 – Oct 13 and the Slack channel (the partner-program build); the AIOS call of 2026-10-28 (Jesse's Thu 29 Oct); Justin's instructions 2026-10-28 |
+| Standard | Justin's AIOS standard (Clief folders, the Claude Mastery checklist, the AI-native company process), adapted for Windows: hooks and tools in Node |
+| Sources | Calls Sep 16 – Oct 13 and the Slack channel (the partner-program build); the AIOS call of 2026-10-28 (Jesse's Thu 29 Oct); Justin's instructions 2026-10-28; Jesse and Mike's recorded office chat (30 Oct NZ), the Slack channel and DMs 29–31 Oct, Jesse's send-fix PDF; Justin's instruction 2026-11-01 (self-install, builds itself, Orgo link, roadmap) |
 | Builds on | github.com/jbellsolutions/smart-contracting-dream-team (public): the Revenue Partner's partner-program upgrade and the Workshop skills, cloned into `modules/partner-program/` |
 
 ## 1. Why this project exists
@@ -40,7 +40,7 @@ The Revenue Partner already finds partner prospects and drafts outreach. This pr
 
 | Bot | Where it runs | Owns | Milestone |
 |---|---|---|---|
-| Chief of Staff | Jesse's PC | The one chat; Needs-Jesse list; memory; ask ledger; tool map; switches | M0 |
+| Chief of Staff | Jesse's PC | The master chat; Needs-Jesse list; memory; ask ledger; tool map; switches; installs itself; the roadmap; builds new pieces on Jesse's yes; the Orgo link | M0 |
 | Revenue Partner (existing) | Its Orgo computer | Outreach, partner program, partner records, Friday scoreboard | M0 (upgrade) |
 | Radar | Jesse's PC + hosted radar | Homeowner leads and reply drafts | M1 |
 | Money | Jesse's PC | Money snapshot; invoicing prep | M1 / M2 |
@@ -49,7 +49,8 @@ The Revenue Partner already finds partner prospects and drafts outreach. This pr
 | Studio | Jesse's PC | Posts, reels, profile tidy-up | M1 / M2 |
 | Office | Jesse's PC | Inbox digest, shared calendar | M1 |
 | SOPs | Jesse's PC | SOP library, checklists, "get back" help | M1 |
-| Fleet, Phone (reserved) | to decide | Vehicles; missed calls and texts | M3 |
+| People | Jesse's PC | Weekly staff check-ins; hiring drafts and agreements from their own templates | M2 |
+| Fleet, Phone (reserved) | to decide | Vehicles (Cartrack, RUCs and regos); missed calls and texts, customer texts on rain days | M3 |
 
 ## 5. How the bots work together
 
@@ -87,6 +88,14 @@ They share one workspace on Jesse's PC (`docs/CONVENTIONS.md`). The Chief of Sta
 | Post drafts, content library | `queue/drafts/studio/`, `vault/_shared/content-library.md` | Studio |
 | Inbox digest, event drafts | `data/inbox-digest.md`, `queue/drafts/office/` | Office |
 | SOP library | `vault/sops/` | SOPs |
+| Staff check-in notes | `vault/people/` (never in git) | People |
+| Hiring drafts | `queue/drafts/people/` | People |
+| The roadmap | `vault/_shared/roadmap.md` | Chief of Staff |
+| Jesse's typed approvals | `state/approvals/` | The approval hook only (from Jesse's own typing) |
+| The Orgo link's calls | `runs/<YYYY-MM>/<date>-chief-of-staff-orgo.md` | `tools/orgo.mjs` |
+| The install log | `runs/<YYYY-MM>/<date>-install.md` | Chief of Staff (`install`) |
+| New charters, skills, routines | this workspace, committed locally | Chief of Staff (`build`), on Jesse's yes to the scope |
+| The guards (`.claude/settings.json`, `tools/hooks/`) | this workspace | Justin's team only |
 | Xero, Ascora, GoHighLevel | Their own systems | Jesse and Mike (agents read only, or draft for their yes) |
 
 ## 8. Approvals
@@ -103,9 +112,9 @@ If Claude usage runs high, pause in this order: Studio drafts, Follow-ups report
 
 | Milestone | What turns on | Depends on | Done when |
 |---|---|---|---|
-| **M0 Install** (Monday session, NZ) | Workspace and vault on Jesse's PC; Chief of Staff; the partner-program module and the Revenue Partner upgrade; `brain-dump`, `systems-map`; the outreach house-style fix | Jesse's PC with Claude Code, Git and Obsidian; the three private context files from Justin's team; Claude connected to Slack | The Chief of Staff writes the first daily note and answers "what's going on?" from the Revenue Partner's real Slack posts |
-| **M1 More work in, less dead time** | Radar (browser + hosted); Money read-only; Office (shared calendar, inbox digest); SOP library; Studio drafts | M0; Mike's yes to a read-only Xero connection; calendars shared; Jesse's SOP screenshots; where crew photos land | Mike reads a money snapshot he trusts; the first SOP approved; the first post drafted and posted |
-| **M2 Jobs, quotes and follow-ups** | Ascora reads, quote helper, photo pulls; GoHighLevel report; agent posting on Jesse's yes; ready-to-invoice list | M1; Ascora API key; Mike's rate sheets; the CRM contractor has heard; a Meta app or GoHighLevel Social Planner | Mike signs off a drafted quote; Jesse reads the first follow-up report |
+| **M0 Install** (Monday session, NZ) | The self-install (`install`): workspace, guards, vault, module, Slack, the Orgo link; Chief of Staff with `roadmap`, `build`, `orgo-link`, `brain-dump`, `systems-map`, both briefs; the outreach house-style fix. **Gate:** the Revenue Partner's sending stays off until `projects/revenue-partner-sends/SPEC.md` passes | Jesse's PC with Claude Code, Git, Node.js and Obsidian; the three private context files from Justin's team; Claude connected to Slack; Jesse's Orgo API key; the one sender built by Justin's team | The install log shows every step passed, including both guard tests; the Orgo link reads the Revenue Partner's computer; the Chief of Staff answers "what's going on?" from real posts and writes the first daily note |
+| **M1 More work in, less dead time** | Radar (browser + hosted); Money read-only (snapshot, and the Ascora-to-Xero mismatch list); the Ascora job-coding fix (Mike, from the steps in `projects/ascora-simplify`); Office (shared calendar by voice, inbox digest with quote requests and tenders); SOP library; Studio drafts | M0; Mike's yes to a read-only Xero connection; calendars shared; Jesse's SOP screenshots; where crew photos land | Mike reads a money snapshot he trusts; the first SOP approved; the first post drafted and posted |
+| **M2 Jobs, quotes and follow-ups** | Ascora reads, quote helper (quantities from Mike, prices from his sheet), photo pulls; rain-day plans and customer-text drafts; QA SOPs per job type and the pre-start check; GoHighLevel report and review requests; People (check-ins, hiring); agent posting on Jesse's yes; ready-to-invoice list | M1; Ascora API key; Mike's rate sheets; the CRM contractor has heard; a Meta app or GoHighLevel Social Planner | Mike signs off a drafted quote; Jesse reads the first follow-up report |
 | **M3 Fleet, phone and the Ascora decision** | Fleet; Phone; failed-quote follow-up; the measured Ascora decision | M2; the tracker's name and export; the phone setup | Service reminders in the calendar; a decision on Ascora with the numbers behind it |
 
 Order follows Jesse's priority: more work in the door first, then time back.
@@ -136,3 +145,7 @@ Measured weekly, each from its source, UNKNOWN until measured: enquiries by sour
 | 2026-10-28 | Build the whole thing now; install together Monday (NZ) | Justin and Jesse | Oct 28 call [22:46], [44:47] |
 | 2026-10-28 | Keep Ascora; simplify the clunky steps first; decide on replacing it only with the cost measured | Justin's advice, Jesse: "not saying I want to change" | Oct 28 call [31:26], [32:02] |
 | 2026-10-28 | The AIOS is a new repo; the public partner-program repo is its module | Justin's team | Build |
+| 2026-11-01 | The workspace installs itself and builds itself: `install`, `build` and `roadmap`, with Jesse's yes to every scope | Justin | `source/instructions/2026-11-01-justin-self-install.md` |
+| 2026-11-01 | The master chat reaches the Revenue Partner's Orgo computer directly; any change there needs Jesse's typed code for that exact command | Justin's instruction; Justin's team's design | as above |
+| 2026-11-01 | One sender for every Revenue Partner email (Jesse's fix list); sends stay off until it passes | Jesse's PDF, Justin's team | Slack 29–31 Oct |
+| 2026-11-01 | The guards are hooks in Node, so they run on Windows; connector sends are blocked; this workspace drafts | Justin's team | Build |

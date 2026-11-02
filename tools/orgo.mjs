@@ -10,7 +10,7 @@
 //   node tools/orgo.mjs run <code>             run a staged command, only after Jesse typed "yes <code>" in chat
 //   node tools/orgo.mjs sends-on [code]        remove the stop file (needs Jesse's "yes <code>")
 //
-// Keys come from .env.local (ORGO_API_KEY, ORGO_COMPUTER) and are never printed. Jesse's "yes <code>" is
+// Keys come from .env.local (ORGO_API_KEY, ORGO_COMPUTER, and ORGO_WORKSPACE if the name is shared) and are never printed. Jesse's "yes <code>" is
 // recorded by tools/hooks/approval_capture.mjs from what he types, into state/approvals/, which the model
 // can't write (settings.json deny rules and the stop guard). Every call is logged in runs/.
 import { spawnSync } from "node:child_process";
@@ -33,7 +33,7 @@ function env() {
   const file = path.join(ROOT, ".env.local");
   if (fs.existsSync(file)) {
     for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
-      const m = line.match(/^(ORGO_API_KEY|ORGO_COMPUTER)=(.*)$/);
+      const m = line.match(/^(ORGO_API_KEY|ORGO_COMPUTER|ORGO_WORKSPACE)=(.*)$/);
       if (m) vals[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
     }
   }
@@ -98,7 +98,7 @@ const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
 
 function onBox(vals, script, timeoutSec = 120) {
   const wrapped = `echo ${b64(script)} | base64 -d | bash`;
-  const r = spawnSync(process.execPath, [CLI, "computers", "bash", vals.ORGO_COMPUTER, "--timeout", String(timeoutSec), "-c", wrapped], {
+  const r = spawnSync(process.execPath, [CLI, "computers", "bash", vals.ORGO_COMPUTER, ...(vals.ORGO_WORKSPACE ? ["--workspace", vals.ORGO_WORKSPACE] : []), "--timeout", String(timeoutSec), "-c", wrapped], {
     env: { ...process.env, ORGO_API_KEY: vals.ORGO_API_KEY }, encoding: "utf8",
     timeout: (timeoutSec + 60) * 1000, maxBuffer: 16 * 1024 * 1024,
   });

@@ -64,3 +64,28 @@ A fresh reviewer read the Oct 28 transcript, Justin's instructions and this pack
 Pushed to GitHub privately on 2026-10-29, then made public on 2026-10-31 on Justin's word ("for now"), as one squashed commit. Before going public, Jesse's own words about where the business stands moved out of the repo into `context/owner.md` (handed over privately at the install), and those phrases joined the blocked-terms list so `cb verify` keeps them out.
 
 Before every push: `cb verify` with the blocked terms, and confirm nothing under `private/` or `context/`, and no `CLIENT-CONTEXT.md`, is tracked.
+
+## v0.2 (2026-11-01): installs itself, builds itself, reaches the Revenue Partner
+
+From Justin's instruction of 1 Nov ("drop it in Claude Code, and it self-installs and builds itself… one chat that's his master chat"), Jesse and Mike's recorded office chat (30 Oct NZ), Jesse's send-fix PDF and Slack messages (29–31 Oct). Ledger rows 106–128; rows 79, 91 and 92 updated with Jesse's answers.
+
+**Built to Justin's AIOS standard**, adapted for Windows: the hooks and tools are Node scripts, because Node is already on Jesse's PC and Python may not be. `cb verify` now runs the AIOS checks; the workspace has its own copy of them in `tools/check.mjs`, so it can check itself after each build.
+
+| Piece | What it does | Asks |
+|---|---|---|
+| `skills/install`, `START-HERE.md` | One paste clones it; the chat installs and proves each step (folder, tools, STOP, both guards firing, module, private files, Obsidian, Slack, the Orgo link, subagents, self-check) and writes an install log | 125 |
+| `skills/build` | Builds a new specialist, skill, routine or project spec after Jesse approves the scope; self-checks; shows it working in test mode; commits locally | 126 |
+| `skills/roadmap`, `vault/_shared/roadmap.md` | Ranks what to build next (safety first, then more work in, then time back), as milestones and dependencies | 128 |
+| `skills/orgo-link`, `tools/orgo.mjs` | Status, logs and `hold` on the Revenue Partner's Orgo computer; questions to it after Jesse's go-ahead; any change there only after Jesse types the code for that exact command | 127, 49 |
+| `projects/revenue-partner-sends/SPEC.md` | Jesse's fix list as requirements and checks: one sender, a real stop file, the right clock, latest draft only, each email once, the gateway kept up, then the model. Sends stay off until it passes | 106–111 |
+| `.claude/settings.json`, `tools/hooks/` | Guards: connector sends blocked (this workspace drafts), outward actions blocked while `state/STOP` exists, keys kept out of chat, Jesse's typed `yes <code>` recorded | 107, rules |
+| `agents/10-people.md`, `skills/staff-check-in`, `skills/hiring`, routine `staff-check-ins` (paused) | Weekly check-ins prepared and written up; hiring drafts and agreements from their own templates | 123, 124 |
+| `skills/evening-brief`, routine (paused) | Where we landed, and everything that went out and who approved it | 117 |
+| Work folders (`<role>/CONTEXT.md`), `.claude/agents/`, `docs/LOOPS.md`, `/calibrate`, glossary | The AIOS standard's structure: one contract and one check per specialist, subagents, event loops, corrections that stick | — |
+| Charter updates | Money (Ascora-to-Xero mismatch list), Jobs and Quotes (quantities, rain days, customer texts), Follow-ups (review requests), Office (inbox triage, calendar by voice), SOPs (QA per job type, pre-starts), Fleet (Cartrack) | 112–122 |
+
+**Tested here (offline):** the Orgo tool's approval flow with a stand-in Orgo CLI (staging, refusal without a typed code, refusal of a stale or reused code, one run, the run log, scrubbing), every script it sends to the computer checked with `bash -n`, the stop guard against 13 sample calls, the secret scan, and `add_secret.mjs` in a pseudo-terminal. A bug was found and fixed (two status lines printed a shell variable literally).
+
+**Not proven yet:** anything on Jesse's PC (Windows hooks firing, the trust prompt, `node` on the app's PATH, `add_secret` in PowerShell), and anything against the real Revenue Partner computer (Hermes's location and user, `hermes cron list`, `--source tool`). The install proves the first set; the first `orgo-link status` proves the second. A read-only test against a live Orgo box from Justin's Mac was refused by the session's safety check and not worked around.
+
+**Open:** the hard stop Justin asked for on 30 Oct is unconfirmed, so treat the Revenue Partner as able to send until `orgo-link status` shows otherwise.

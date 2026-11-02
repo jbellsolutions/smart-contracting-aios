@@ -19,6 +19,14 @@ On Oct 28 Jesse had to ask what a prompt was for. So every approval request:
 
 A bare "yes" approves nothing new. One item, one thread, one keyword.
 
+## Typed codes (the guarded actions)
+
+A change to the Revenue Partner's computer, turning its sending back on, letting the Chief of Staff message it directly, or a change to this file: the tool shows the exact action and a 6-character code, and only Jesse typing `yes <code>` in the chat approves it (`docs/CONVENTIONS.md`, "Jesse's typed approval codes"). The code is tied to that exact action and used once.
+
+## Sending from this PC
+
+This workspace drafts; it doesn't send. A hook blocks every connector tool that sends, posts, replies, forwards or deletes, and while `state/STOP` exists, anything else that changes another system. Jesse sends from his own apps, or the specialist that owns a standing job asks Justin's team to open that one path.
+
 ## Standing approvals
 
 A standing approval covers one exact template or action, in Jesse's words, recorded by the Chief of Staff in `context/standing-approvals.md` with the date. Jesse said on Oct 28 that site posts may need no check once "it's the same every time": that becomes a standing approval only when he says so for a named post type, after a run of approved posts. None exist at install.

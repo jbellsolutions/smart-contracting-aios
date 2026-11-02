@@ -5,3 +5,5 @@ One line per standing fact, linking to its one home. The Chief of Staff keeps th
 - [[_shared/business]]: who Smart Contracting is, the work they want, who decides what
 - [[_shared/voice]]: how Jesse talks and how every message is written
 - [[_shared/tool-map]]: every tool and subscription, what it does, who logs in, what connects
+- [[_shared/glossary]]: names and words, so dictation lands right
+- [[_shared/roadmap]]: what's being built now, next and later (written by the `roadmap` skill)

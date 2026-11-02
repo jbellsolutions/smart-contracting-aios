@@ -29,7 +29,7 @@ Before step 1, say: "I'll set everything up and check each piece as I go. You'll
 The rules that must always hold are hooks in `.claude/settings.json`, not just words. They only run once this folder is trusted, and when `node` is on the PATH the app sees.
 - If the app asked "Do you trust this folder?", Jesse says yes.
 - Prove the stop guard: run the Bash command `echo install-test --send`. **It must be refused** with "Blocked: state/STOP exists". If it ran instead, the hooks are off: stop. Ask Jesse to trust the folder and restart the app, then try again. If it still runs, send Justin's team a note with what you saw.
-- Prove the key guard: ask Jesse to type exactly `sk-test-aaaaaaaaaaaaaaaaaaaaaaaa`. It must be blocked with "That looks like a key". (It's a fake key.)
+- Prove the key guard: ask Jesse to type `sk-test-` followed by twenty-four letter a's, with no spaces (a fake key). It must be blocked with "That looks like a key".
 - Check: both refused. Log both.
 
 ## 5. The partner-program module

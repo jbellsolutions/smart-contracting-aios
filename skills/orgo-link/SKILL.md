@@ -12,6 +12,7 @@ description: Connects the Chief of Staff to the Revenue Partner's Orgo computer 
 2. Jesse, in his own PowerShell window in this folder (never in chat):
    - `node tools/add_secret.mjs ORGO_API_KEY`: from orgo.ai, his account's API keys page.
    - `node tools/add_secret.mjs ORGO_COMPUTER`: the Revenue Partner computer's name as Orgo shows it.
+   - Only if `status` says the name matches more than one computer: `node tools/add_secret.mjs ORGO_WORKSPACE` (the Orgo workspace it's in).
 3. Check: `node tools/orgo.mjs status` prints the computer's clock, Hermes and gateway. If it says UNKNOWN for Hermes, stop and tell Justin's team what it printed.
 
 ## What needs no approval

@@ -9,6 +9,12 @@ Justin's method, same call: field-service tools are specialised, so "first isola
 2. **Fix on top, not instead.** For each item, the cheapest fix that keeps Ascora as the record: an SOP (`sop-writer`), an API pull (photos, quote status), a webhook alert (quote accepted, job booked), or a Zapier step.
 3. **The measured decision.** After the fixes, total what Ascora still costs (subscription plus remaining clunk time). Only if that's large does a replacement get scoped, and that's Jesse's and Mike's decision, with an export of all their data first.
 
+## Fix first: invoices stuck on their way to Xero (ask 120, Oct 30)
+Jesse found two causes (Oct 30, with Mike):
+1. **Job coding.** Jobs are coded commercial, civils or domestic, and invoices sit in Ascora when the code is wrong: "It's just contracting. It's a job. There's no point splitting it apart." The agent writes the exact steps to merge the codes from Ascora's own help pages (cited), and lists the invoices waiting now. Mike, as admin, makes the change.
+2. **gmail.com senders.** Ascora picks up supplier invoices from business email domains but not from gmail.com addresses, so a small builder's invoice never lands. The agent finds Ascora's setting or support answer (cited) and writes the steps; Mike makes the change.
+Check: the Money mismatch list (Ascora vs Xero) shows no invoice held back for either reason.
+
 ## Ascora facts (checked 2026-10-28, ascora.com.au/kb/api-endpoints and the API guide v1.16)
 - REST API at api.ascora.com.au; key from Administration → API Settings.
 - Quotes (create, status, convert to job), jobs, customers, bookings, suppliers, supplier invoices, notes; attachments up and down (job photos as a ZIP, 500 files / 200 MB, 10 requests an hour).

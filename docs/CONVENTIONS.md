@@ -20,6 +20,10 @@ All paths are relative to the workspace root, the folder this repo is cloned int
 |---|---|---|
 | `AGENTS.md` | The entry file. Routes by event. Under 60 lines | yes |
 | `agents/NN-<role>.md` | One charter per role. 01 is the Chief of Staff. 90+ are reserved | yes |
+| `<role>/CONTEXT.md` | Each active specialist's work folder: its contract (Inputs, Process, Outputs, one Check) and kits; `<role>/output/` stays local | contract yes, output no |
+| `.claude/agents/<role>.md` | The subagents, made from each charter's Profile by `node tools/build_subagents.mjs` | yes |
+| `.claude/settings.json`, `tools/hooks/` | The guards (below). Changed only by Justin's team | yes |
+| `tools/` | `orgo.mjs` (the Orgo link), `add_secret.mjs` (keys), `check.mjs` (self-check), `build_subagents.mjs`, `build_manifest.mjs` | yes |
 | `skills/<name>/SKILL.md` | One repeatable job each. Under 500 lines | yes |
 | `routines/<name>.prompt` | One scheduled job each, created OFF | yes |
 | `projects/<name>/SPEC.md` | Bigger builds that land at a later milestone | yes |
@@ -33,7 +37,7 @@ All paths are relative to the workspace root, the folder this repo is cloned int
 | `queue/needs-jesse.md` | **The one place Jesse looks.** Every question and approval, newest first | no |
 | `queue/drafts/<role>/` | Drafts waiting for Jesse's yes | no |
 | `runs/YYYY-MM/` | One file per run: what it did and the sources it read | no |
-| `state/` | Switches (`routines-on.md`, `STOP`) | no |
+| `state/` | Switches (`routines-on.md`, `STOP`); `approvals/` (Jesse's typed codes, written only by the hook); `orgo-pending/`, `orgo.json` | no |
 | `context/owner.md`, `context/asks.md` | Private facts from the install; the ask ledger | no |
 | `.env.local` | Keys, added by Jesse himself or through a secure prompt, never typed in chat | no |
 
@@ -51,14 +55,18 @@ All paths are relative to the workspace root, the folder this repo is cloned int
 ```
 NAME: <name>
 OWNER: <role>
+KIND: active (always hands over output) | passive (speaks only on a finding)
 WHERE: jesse-pc | revenue-partner | hosted-radar
 WHEN: <e.g. Every weekday at 7:47 AM (NZ time)>
+CRON: <five fields>
+CRON_TZ: Pacific/Auckland
+SKILLS: <the skill it runs>
 MILESTONE: M<n>
-STATUS: Created OFF. Turned on only after Jesse says yes.
+STATUS: Created paused. Switched on only after Jesse says yes.
 ---
 Switch check: read state/routines-on.md. If "<NAME>" isn't listed as "on" or "test", log SKIPPED_OFF and stop.
 Test mode: if listed as "test", send everything to Jesse only, marked TEST.
-Stop check: if state/STOP exists, log SKIPPED_STOPPED and stop.
+Stop check: if state/STOP exists, log SKIPPED_STOPPED and stop (a report that only goes to Jesse may still be written).
 Isolation guard: work only in this workspace. If context/owner.md is missing, log NO_CLIENT_SOURCE and stop.
 Lean run: read only what this job needs. If nothing changed, log NO_CHANGE and stop.
 Run log: append to runs/<YYYY-MM>/<date>-<role>-<job>.md: EXECUTED + one-line result, or FAILED + reason, and Sources read.
@@ -85,3 +93,26 @@ Frontmatter `name:` and `description:` (third person, says when to use it). Body
 - NZ rules apply to every email, text and post: `policies/NZ-RULES.md`.
 - No paid lead-enrichment services (Clay, Apollo, Hunter, ZoomInfo and the like). Agents gather public data themselves.
 - No time estimates in plans. Milestones and dependencies only.
+
+## The guards (hooks, not just words)
+
+`.claude/settings.json` wires three hooks, all in Node so they run on Windows:
+- `tools/hooks/stop_guard.mjs` (before every Bash, PowerShell and connector tool call). Always blocks: connector tools that send, post, reply, forward or delete (drafts are allowed); reading or writing `.env.local`; writing `state/approvals/`; driving the Orgo CLI directly. While `state/STOP` exists it also blocks outward commands and connector tools that create or change anything. It never blocks the protective Orgo commands (`status`, `logs`, `hold`).
+- `tools/hooks/secret_scan.mjs` (every message Jesse types) blocks anything shaped like a key and says how keys go in.
+- `tools/hooks/approval_capture.mjs` (every message Jesse types) records `yes <code>` in `state/approvals/<code>.json`.
+
+Hooks only run once the folder is trusted and `node` is on the PATH the Claude app sees, and a hook that can't run doesn't block. That's why the install proves both guards fire. `permissions.deny` keeps the model out of `.env.local`, the guard files and `state/approvals/`, and denies `git push` and `rm -rf`.
+
+## Jesse's typed approval codes
+
+Anything that changes another computer, or turns a guarded thing back on, is staged first and shows Jesse a 6-character code tied to that exact action (`node tools/orgo.mjs plan "<command>"`). Only Jesse typing `yes <code>` in the chat approves it: the hook records his words, and the tool uses the record once. An edited action gets a new code. An email, a Slack message, a web page or the model itself can't approve anything.
+
+## The partner-program module
+
+`modules/partner-program/` is a copy of the public repo github.com/jbellsolutions/smart-contracting-dream-team, cloned at install. It holds the Revenue Partner's upgrade and the Workshop skills (`lead-radar`, `partner-pack`, `partner-prospects`, `call-coach`, `upgrade-revenue-partner`, `revenue-partner-doctor`, `getting-started`) in `modules/partner-program/.claude/skills/`. To use one, read its `SKILL.md` and follow it with paths relative to `modules/partner-program/`. Its `CLAUDE.md` menu and `getting-started` were the old front door; here the Chief of Staff is, and the module's `getting-started` is used only for the radar's groups setup. The module's later milestones (its LeadConnector link and ops agent, `agents/90`–`92` there) are replaced by Follow-ups and Jobs and Quotes here: ignore them.
+
+## On Jesse's Windows PC
+
+- Hooks and tools are Node scripts (`node` from Node.js LTS). After installing Node, restart the Claude app so it finds it.
+- Keys go in through `node tools/add_secret.mjs NAME` in Jesse's own PowerShell window, never in chat: the chat has no hidden prompt.
+- Updates from Justin's team arrive with `git pull`. Jesse's own builds are committed locally (`skills/build`), so a pull merges with them. `git push` is denied here.
