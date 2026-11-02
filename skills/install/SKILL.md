@@ -55,7 +55,7 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 - Jesse, in **his own PowerShell window** in this folder (Start → PowerShell, then `cd` to the folder; you give him the exact `cd` line), runs:
   - `node tools/add_secret.mjs ORGO_API_KEY` (from orgo.ai, API keys)
   - `node tools/add_secret.mjs ORGO_COMPUTER` (the Revenue Partner computer's name in Orgo)
-- Check: `node tools/orgo.mjs status` prints a `clock_off_by_seconds` line and a `binary:` line that isn't UNKNOWN. If it says the computer can't be found, the computer may sit in a different Orgo account or workspace from Jesse's key (for example Justin's team's). Stop and ask Justin's team which account holds it and whose key to use.
+- Check: `node tools/orgo.mjs status` prints a `clock_off_by_seconds` line and a `binary:` line that isn't UNKNOWN. The computer is in Jesse's own Orgo account, so his key reaches it. If `status` says it can't be found, check the name in `ORGO_COMPUTER` against orgo.ai, and add `ORGO_WORKSPACE` (the workspace it's in) if the name is shared.
 - Then, while it's fresh: if `status` shows any timer or send-like process, or the stop file is absent, run `node tools/orgo.mjs hold` and go through each timer with Jesse using the "Changing the computer" steps in `skills/orgo-link/SKILL.md`. Sending stays off until `projects/revenue-partner-sends/SPEC.md` passes.
 
 ## 10. The team
