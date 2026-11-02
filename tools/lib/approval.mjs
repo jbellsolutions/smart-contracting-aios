@@ -23,6 +23,8 @@ function newCode() {
 }
 
 // Show the code and the action in a window the model can't read. Returns false where no window can be shown.
+// "true" only means the window was started: the Claude app can run commands where Jesse's desktop can't see
+// them, so stage() always names the terminal route too.
 export function popup(title, body) {
   try {
     if (process.platform === "win32") {
@@ -42,6 +44,8 @@ export function popup(title, body) {
 }
 
 // Stage one action. Prints what the chat may see; the code itself goes only to the window.
+// Two ways for Jesse to approve: type "yes <code>" from the window in the chat, or run node tools/approve.mjs in
+// his own terminal window (for when the window doesn't show up on his screen, as on Nov 1).
 export function stage(root, kind, text, title, what) {
   const { pending } = dirs(root);
   fs.mkdirSync(pending, { recursive: true });
@@ -50,12 +54,31 @@ export function stage(root, kind, text, title, what) {
     try { if (JSON.parse(fs.readFileSync(p, "utf8")).kind === kind) fs.rmSync(p); } catch { fs.rmSync(p, { force: true }); }
   }
   const code = newCode();
-  if (!popup(title, `${what}\n\n${text}\n\nTo allow this once, type in the Claude chat:\n\nyes ${code}\n\nIf you don't want it, just ignore this.`)) {
-    console.error("No window could be shown on this computer, so nothing was staged (the code must never appear in the chat).");
-    process.exit(6);
+  const shown = popup(title, `${what}\n\n${text}\n\nTo allow this once, type in the Claude chat:\n\nyes ${code}\n\nIf you don't want it, just ignore this.`);
+  fs.writeFileSync(path.join(pending, `${hashCode(code)}.json`), JSON.stringify({ kind, text, title, what, created: Date.now() }, null, 2));
+  console.log(`${what}\n\n    ${text}\n`);
+  if (shown) console.log(`A window on Jesse's screen shows this and an 8-character code (check the taskbar if it's behind the Claude app). To allow it once, Jesse types "yes <code>" in this chat. The code isn't shown here, so nobody else can approve it.`);
+  console.log(`${shown ? "If no window appears" : "No window can be shown here"}, Jesse approves it in his own PowerShell window in this folder instead: node tools/approve.mjs (it shows exactly this and asks him to type yes).`);
+  console.log("Then run the same tool's apply step.");
+}
+
+// Everything staged and not yet approved, oldest first (for tools/approve.mjs). Never includes a code.
+export function listPending(root) {
+  const { pending, approvals } = dirs(root);
+  const out = [];
+  for (const f of fs.existsSync(pending) ? fs.readdirSync(pending) : []) {
+    if (fs.existsSync(path.join(approvals, f))) continue;
+    try { out.push({ file: f, ...JSON.parse(fs.readFileSync(path.join(pending, f), "utf8")) }); } catch { /* skip unreadable */ }
   }
-  fs.writeFileSync(path.join(pending, `${hashCode(code)}.json`), JSON.stringify({ kind, text, created: Date.now() }, null, 2));
-  console.log(`${what}\n\n    ${text}\n\nA window on Jesse's screen shows this and an 8-character code. To allow it once, Jesse types "yes <code>" in this chat. The code isn't shown here, so nobody else can approve it. Then run the same tool's apply step.`);
+  return out.sort((a, b) => a.created - b.created);
+}
+
+// Record Jesse's yes from his own terminal for one staged item (tools/approve.mjs only).
+export function approveInTerminal(root, file) {
+  const { pending, approvals } = dirs(root);
+  if (!/^[a-f0-9]{32}\.json$/.test(file) || !fs.existsSync(path.join(pending, file))) throw new Error("No such staged item.");
+  fs.mkdirSync(approvals, { recursive: true });
+  fs.writeFileSync(path.join(approvals, file), JSON.stringify({ words: "yes (typed in Jesse's own terminal)", at: new Date().toISOString() }, null, 2));
 }
 
 // Called by the approval hook with the exact prompt Jesse typed.
@@ -87,7 +110,7 @@ export function take(root, kinds) {
     hits.push({ f, item, approval });
   }
   if (hits.length !== 1) {
-    console.error(hits.length ? "More than one approved item; nothing run. Stage it again." : 'Nothing approved yet. Jesse types "yes <code>" from the window, exactly, in this chat.');
+    console.error(hits.length ? "More than one approved item; nothing run. Stage it again." : 'Nothing approved yet. Jesse types "yes <code>" from the window, exactly, in this chat, or runs node tools/approve.mjs in his own PowerShell window.');
     process.exit(5);
   }
   const { f, item, approval } = hits[0];

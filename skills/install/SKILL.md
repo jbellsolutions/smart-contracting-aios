@@ -12,6 +12,7 @@ Before step 1, say: "I'll set everything up and check each piece as I go. You'll
 ## 1. The right folder
 - This folder must have `AGENTS.md`, and its path must not contain `OneDrive` or `Documents` (OneDrive would sync the vault, the keys and `.git`). The intended place is `C:\Users\<Jesse>\Smart-Contracting-AIOS`.
 - Check: `git rev-parse --show-toplevel` prints this folder, and the path has neither word. If it's in OneDrive: stop and say "Let's move it first", then give the exact `git clone` into the home folder.
+- **This chat must have been started in this folder**, or the guards in `.claude/settings.json` aren't loaded (Nov 1: "This chat didn't load the folder guards because it started in another folder"). Check: the session's own working folder (where it started) is this folder. If it isn't, stop and tell Jesse, in these words: "One more click first. In the Claude app, go to Code, start a **new session**, choose the folder `<full path>`, say yes if it asks whether you trust the folder, then type **install** there. You can close this chat." Don't carry on with the install from a chat started elsewhere.
 
 ## 2. The tools
 - Check each: `git --version`, `node --version` (20 or newer), and ask Jesse whether Obsidian opens.
@@ -30,7 +31,10 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 - If the app asked "Do you trust this folder?", Jesse says yes.
 - Prove the stop guard: run the Bash command `echo install-test --send`. **It must be refused** with "Blocked: state/STOP exists". If it ran instead, the hooks are off: stop. Ask Jesse to trust the folder and restart the app, then try again. If it still runs, send Justin's team a note with what you saw.
 - Prove the key guard: ask Jesse to type `sk-test-` followed by twenty-four letter a's, with no spaces (a fake key). It must be blocked with "That looks like a key".
-- Prove Jesse's approvals: run `node tools/switch.mjs test`. A window opens on Jesse's screen with an 8-character code (it isn't shown in the chat; if he can't see it, it may be behind the Claude app, so check the taskbar). Jesse types `yes` and the code. Typing is safer than dictating it, because dictation can mishear letters. Then run `node tools/switch.mjs apply`: it must print "Approval test: PASS". If no window opened, stop: the Orgo link's changes can't be approved on this PC until it does; tell Justin's team.
+- Prove Jesse's approvals: run `node tools/switch.mjs test`. There are two ways to approve, and either one passes:
+  - **The window:** a window may open on Jesse's screen with an 8-character code (never shown in the chat; it may be behind the Claude app, so check the taskbar). Jesse types `yes` and the code. Typing is safer than dictating it.
+  - **His own window (if no code window shows up within a minute; on Nov 1 the Claude app ran it where his desktop couldn't see it):** Jesse opens PowerShell in this folder (you give him the exact `cd` line, the same window he'll use for keys at step 9) and runs `node tools/approve.mjs`. It shows exactly what's waiting and he types `yes`. Then he tells you "approved".
+  - Then run `node tools/switch.mjs apply`: it must print "Approval test: PASS". Log which way worked; every later approval (the Orgo link's changes, lifting STOP) uses the same way. Don't skip this step: without a working approval, nothing that needs Jesse's yes can run.
 - Check: the send and the key were both refused, and the approval test passed. Log all three.
 
 ## 5. The partner-program module
@@ -51,11 +55,10 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 - Prove the connector guard: try Slack's send-message tool once, to Jesse's own DM, with the text "install test: if you can read this, the guard is off". It must be refused with "Blocked". If it went through, Jesse gets a harmless note to himself and the guard is off: stop and tell Justin's team. This workspace only ever reads and drafts through connectors.
 
 ## 9. The Orgo link
-- `npm install --prefix tools/.orgo orgo@2.3.0 --no-audit --no-fund` (if this runs in PowerShell, use `npm.cmd`)
-- Jesse, in **his own PowerShell window** in this folder (Start → PowerShell, then `cd` to the folder; you give him the exact `cd` line), runs:
-  - `node tools/add_secret.mjs ORGO_API_KEY` (from orgo.ai, API keys)
-  - `node tools/add_secret.mjs ORGO_COMPUTER` (the Revenue Partner computer's name in Orgo)
-- Check: `node tools/orgo.mjs status` prints a `clock_off_by_seconds` line and a `binary:` line that isn't UNKNOWN. The computer is in Jesse's own Orgo account, so his key reaches it. If `status` says it can't be found, check the name in `ORGO_COMPUTER` against orgo.ai, and add `ORGO_WORKSPACE` (the workspace it's in) if the name is shared.
+- `node tools/setup_orgo.mjs`: installs Orgo's command-line tool into `tools/.orgo` (removing any half-finished copy first) and checks it starts. It must end with "Orgo tool OK". If the chat isn't allowed to run it, Jesse runs the same line in his own PowerShell window in this folder. Never try to delete `tools/.orgo` by hand (the recursive-delete rule blocks it, on purpose); this tool does the clean reinstall.
+- Jesse, in **his own PowerShell window** in this folder (Start → PowerShell, then `cd` to the folder; you give him the exact `cd` line), runs `node tools/add_secret.mjs ORGO_API_KEY` (from orgo.ai → API keys, signed in to **his own** Orgo account, where the Revenue Partner's computer is). No browser sign-in is needed.
+- `node tools/orgo.mjs computers` lists the computers that key can see. With Jesse, pick the Revenue Partner's (on Nov 1 it looked like "AI Guy Revenue Partner", in the AI Guy / Revenue Partners workspace; use the name exactly as listed), then `node tools/orgo.mjs use "<that name>"`. It refuses a name that isn't on the list and suggests the near ones. If two computers share the name, it asks for `node tools/orgo.mjs workspace "<name>"` too.
+- Check: `node tools/orgo.mjs status` prints a `clock_off_by_seconds` line and a `binary:` line that isn't UNKNOWN. If `computers` lists nothing, the key is from a different Orgo account.
 - Then, while it's fresh: if `status` shows any timer or send-like process, or the stop file is absent, run `node tools/orgo.mjs hold` and go through each timer with Jesse using the "Changing the computer" steps in `skills/orgo-link/SKILL.md`. Sending stays off until `projects/revenue-partner-sends/SPEC.md` passes.
 
 ## 10. The team
@@ -72,5 +75,6 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 
 ## Never
 - Ask for a key, password or token in chat, or read `.env.local`. Keys go in through `node tools/add_secret.mjs NAME` in Jesse's own window.
+- Run `tools/approve.mjs` or `tools/add_secret.mjs` yourself: those are Jesse's, in his own window.
 - Remove `state/STOP`, switch on a routine, or send anything during the install.
 - Edit `.claude/settings.json` or `tools/hooks/`. If they need changing, that's Justin's team.

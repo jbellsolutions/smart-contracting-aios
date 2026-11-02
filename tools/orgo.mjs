@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // The Chief of Staff's link to the Revenue Partner's Orgo computer. See skills/orgo-link/SKILL.md.
 //
+//   node tools/orgo.mjs computers              read-only: list the computers Jesse's Orgo key can see (name, workspace, status)
+//   node tools/orgo.mjs use "name"             save which one is the Revenue Partner (ORGO_COMPUTER; must match the list)
+//   node tools/orgo.mjs workspace "name"       only if two computers share the name: save which workspace (ORGO_WORKSPACE)
 //   node tools/orgo.mjs status                 read-only: NZ time and clock drift, Hermes and its profiles, the gateway,
 //                                              the stop files, every timer (per profile) and any send-like process
 //   node tools/orgo.mjs logs [lines] [gateway|errors|agent]   read-only: tail one Hermes log
@@ -11,7 +14,7 @@
 //   node tools/orgo.mjs apply                  run the one staged item Jesse has approved, once
 //
 // Approvals: tools/lib/approval.mjs shows the code in a window on Jesse's screen, never in the chat, and only
-// Jesse typing exactly "yes <code>" approves it. Keys come from .env.local (ORGO_API_KEY, ORGO_COMPUTER, and
+// Jesse typing exactly "yes <code>" (or yes in node tools/approve.mjs, in his own window) approves it. Keys come from .env.local (ORGO_API_KEY, ORGO_COMPUTER, and
 // ORGO_WORKSPACE / ORGO_PROFILE when needed) and are never printed. Every call is logged in runs/.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -24,8 +27,8 @@ const CLI = path.join(ROOT, "tools", ".orgo", "node_modules", "orgo", "dist", "c
 
 function die(msg, code = 1) { console.error(msg); process.exit(code); }
 
-function env() {
-  const vals = { ...process.env };
+function readEnvFile() {
+  const vals = {};
   const file = path.join(ROOT, ".env.local");
   if (fs.existsSync(file)) {
     for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
@@ -33,11 +36,41 @@ function env() {
       if (m) vals[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
     }
   }
+  return vals;
+}
+
+// needComputer=false for `computers` and `use`, which run before the computer is chosen.
+function env(needComputer = true) {
+  const vals = { ...process.env, ...readEnvFile() };
+  if (!fs.existsSync(CLI)) die("The Orgo tool isn't installed here, or its download is incomplete. Run: node tools/setup_orgo.mjs (it reinstalls it cleanly and checks it starts).", 4);
   if (!vals.ORGO_API_KEY) die("No ORGO_API_KEY. Jesse adds it himself, in his own PowerShell window: node tools/add_secret.mjs ORGO_API_KEY", 4);
-  if (!vals.ORGO_COMPUTER) die("No ORGO_COMPUTER (the Revenue Partner computer's name or id). Jesse adds it: node tools/add_secret.mjs ORGO_COMPUTER", 4);
-  if (!fs.existsSync(CLI)) die("The Orgo CLI isn't installed here. Run: npm install --prefix tools/.orgo orgo@2.3.0 --no-audit --no-fund (in PowerShell: npm.cmd ...)", 4);
+  if (needComputer && !vals.ORGO_COMPUTER) die('No Revenue Partner computer chosen yet. Run: node tools/orgo.mjs computers, then node tools/orgo.mjs use "<its name exactly as listed>".', 4);
   if (vals.ORGO_PROFILE && !/^[\w.-]+$/.test(vals.ORGO_PROFILE)) die("ORGO_PROFILE must be a plain profile name.", 4);
   return vals;
+}
+
+// Orgo's tool, run directly with the key in its environment. Explains a broken install instead of a stack trace.
+function cli(vals, args, timeoutMs = 120000) {
+  const r = spawnSync(process.execPath, [CLI, ...args], {
+    env: { ...process.env, ORGO_API_KEY: vals.ORGO_API_KEY }, encoding: "utf8", timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024,
+  });
+  const err = String(r.stderr || "");
+  if (/ERR_MODULE_NOT_FOUND|Cannot find (module|package)/.test(err)) die("The Orgo tool's download is incomplete (a part of it is missing). Run: node tools/setup_orgo.mjs", 4);
+  return r;
+}
+
+function listComputers(vals) {
+  const r = cli(vals, ["--json", "computers", "list"]);
+  if (r.error || r.status !== 0) return { error: scrub(String(r.stderr || r.stdout || r.error?.message || "no answer")).trim().slice(0, 400) };
+  try { return { list: (JSON.parse(r.stdout).computers || []).map((c) => ({ name: c.name, workspace: c.workspace_name, status: c.status })) }; }
+  catch { return { error: "Orgo answered in an unexpected format: " + scrub(r.stdout).slice(0, 300) }; }
+}
+
+function saveSetting(name, value) {
+  const file = path.join(ROOT, ".env.local");
+  const lines = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split(/\r?\n/).filter((l) => l && !l.startsWith(`${name}=`)) : [];
+  lines.push(`${name}=${value}`);
+  fs.writeFileSync(file, lines.join("\n") + "\n", { mode: 0o600 });
 }
 
 // Remove anything shaped like a key, token, JWT, long secret or pairing link before it's shown or logged.
@@ -98,10 +131,7 @@ const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
 
 function onBox(vals, script, timeoutSec = 120) {
   const wrapped = `echo ${b64(script)} | base64 -d | bash`;
-  const r = spawnSync(process.execPath, [CLI, "computers", "bash", vals.ORGO_COMPUTER, ...(vals.ORGO_WORKSPACE ? ["--workspace", vals.ORGO_WORKSPACE] : []), "--timeout", String(timeoutSec), "-c", wrapped], {
-    env: { ...process.env, ORGO_API_KEY: vals.ORGO_API_KEY }, encoding: "utf8",
-    timeout: (timeoutSec + 60) * 1000, maxBuffer: 16 * 1024 * 1024,
-  });
+  const r = cli(vals, ["computers", "bash", vals.ORGO_COMPUTER, ...(vals.ORGO_WORKSPACE ? ["--workspace", vals.ORGO_WORKSPACE] : []), "--timeout", String(timeoutSec), "-c", wrapped], (timeoutSec + 60) * 1000);
   if (r.error) return { code: 1, out: "", err: String(r.error.message) };
   return { code: r.status ?? 1, out: scrub(r.stdout || ""), err: scrub(r.stderr || "") };
 }
@@ -123,6 +153,45 @@ const stopped = () => fs.existsSync(path.join(ROOT, "state", "STOP"));
 function main() {
   const [sub, ...args] = process.argv.slice(2);
   if (!sub || sub === "help") { console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\nimport ")[0]); return; }
+
+  if (sub === "computers") {
+    const { list, error } = listComputers(env(false));
+    if (error) die(`Couldn't list the computers: ${error}\nIf it says the key is invalid, Jesse adds it again in his own window: node tools/add_secret.mjs ORGO_API_KEY`, 2);
+    if (!list.length) die("This Orgo key sees no computers. The Revenue Partner's computer is in Jesse's own Orgo account: check the key came from that account (orgo.ai, API keys).", 2);
+    list.forEach((c, i) => console.log(`${i + 1}. ${c.name}  (workspace: ${c.workspace}; ${c.status})`));
+    console.log('\nPick the Revenue Partner\'s computer with Jesse, then: node tools/orgo.mjs use "<name exactly as above>"');
+    logRun("computers", "EXECUTED", `listed ${list.length} computer(s)`);
+    return;
+  }
+
+  if (sub === "use") {
+    const name = args.join(" ").trim().replace(/^["']|["']$/g, "");
+    if (!name) die('Usage: node tools/orgo.mjs use "<computer name exactly as listed>"');
+    const { list, error } = listComputers(env(false));
+    if (error) die(`Couldn't check the name against Orgo: ${error}`, 2);
+    const hits = list.filter((c) => c.name === name);
+    if (!hits.length) {
+      const near = list.filter((c) => c.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(c.name.toLowerCase()));
+      die(`No computer is named exactly "${name}". ${near.length ? `Did you mean: ${near.map((c) => `"${c.name}"`).join(", ")}?` : "Run node tools/orgo.mjs computers to see the names."}`, 2);
+    }
+    saveSetting("ORGO_COMPUTER", name);
+    if (hits.length > 1) {
+      console.log(`Saved, but ${hits.length} computers share that name. Save the workspace too: node tools/orgo.mjs workspace "<one of: ${hits.map((c) => c.workspace).join(", ")}>"`);
+    } else console.log(`Saved: the Revenue Partner's computer is "${name}" (workspace: ${hits[0].workspace}). Next: node tools/orgo.mjs status`);
+    logRun("use", "EXECUTED", `chose computer "${name}"`);
+    return;
+  }
+
+  if (sub === "workspace") {
+    const ws = args.join(" ").trim().replace(/^["']|["']$/g, "");
+    const { list, error } = listComputers(env(false));
+    if (error) die(`Couldn't check the workspace against Orgo: ${error}`, 2);
+    if (!ws || !list.some((c) => c.workspace === ws)) die(`No workspace is named exactly "${ws}". Workspaces: ${[...new Set(list.map((c) => c.workspace))].join(", ")}`, 2);
+    saveSetting("ORGO_WORKSPACE", ws);
+    console.log(`Saved the workspace "${ws}". Next: node tools/orgo.mjs status`);
+    return;
+  }
+
   const vals = env();
   process.env.ORGO_COMPUTER_LABEL = vals.ORGO_COMPUTER;
   const profile = vals.ORGO_PROFILE ? `-p ${vals.ORGO_PROFILE}` : "";

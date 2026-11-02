@@ -7,7 +7,7 @@ On Jesse's PC, open the Claude app → Code, start a new session in your home fo
 
 > Clone https://github.com/jbellsolutions/smart-contracting-aios into my home folder as Smart-Contracting-AIOS (not Documents or OneDrive). If git isn't installed, install it with winget and tell me to restart the Claude app and paste this again. Then tell me how to open a new Claude Code session in that folder.
 
-Then open a new session in `Smart-Contracting-AIOS`, say yes if the app asks whether you trust the folder, and say **install**.
+Then start a **new** Code session and choose the `Smart-Contracting-AIOS` folder for it (the install only works in a chat started in that folder, because that's where its safety rules load), say yes if the app asks whether you trust the folder, and say **install**.
 
 ## 2. The chat installs itself
 `skills/install/SKILL.md` runs each step and proves it worked, in an install log in `runs/`. Jesse's part:
@@ -15,9 +15,10 @@ Then open a new session in `Smart-Contracting-AIOS`, say yes if the app asks whe
 - save the three private files Justin's team DMs him (`owner.md`, `asks.md`, `standing-approvals.md`) into the `context` folder;
 - open the `vault` folder in Obsidian;
 - sign in to Slack in the Claude app's connectors;
-- type two keys into his own PowerShell window (`node tools/add_secret.mjs ORGO_API_KEY` and `ORGO_COMPUTER`). Never into the chat.
+- type one key into his own PowerShell window (`node tools/add_secret.mjs ORGO_API_KEY`, from his own Orgo account). Never into the chat. The chat then lists his Orgo computers and he picks the Revenue Partner's;
+- approve things with his own typing: either `yes` and the code from a window that pops up, or, if no window shows up, `node tools/approve.mjs` in that same PowerShell window.
 
-**Installed means** the install log shows every step passed, including the guard tests (a send refused while `state/STOP` exists, a fake key refused, an approval code working from its window, and a Slack send refused), and the Orgo link reads the Revenue Partner's computer.
+**Installed means** the install log shows every step passed, including the guard tests (a send refused while `state/STOP` exists, a fake key refused, an approval working (from the code window or `tools/approve.mjs`), and a Slack send refused), and the Orgo link reads the Revenue Partner's computer.
 
 ## 3. Then it builds itself
 - **"Set me up"**: your details, your tools, the open questions, the first morning brief (`skills/getting-started`).

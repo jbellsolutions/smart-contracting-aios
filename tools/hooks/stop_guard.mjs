@@ -37,7 +37,8 @@ if (tool === "Bash" || tool === "PowerShell") {
   // after Jesse's code. Allowed as exactly one quoted argument that the local shell can't expand.
   if (/^\s*node\s+(?:\.[\\/])?tools[\\/]orgo\.mjs\s+(plan|ask)\s+('[^']*'|"[^"$`\\]*")\s*$/.test(cmd)) process.exit(0);
   const chained = /[;&|`]|\$\(|\n/.test(cmd);
-  const ownTool = !chained && /^\s*node\s+(\.\/|\.\\)?tools[\\/](orgo|switch|check|build_subagents|build_manifest)\.mjs(\s|$)/.test(cmd);
+  if (/tools[\\/](approve|add_secret)\.mjs/i.test(cmd)) block("approvals and keys are typed by Jesse in his own PowerShell window, never run from chat. Give him the exact line to run there.");
+  const ownTool = !chained && /^\s*node\s+(\.\/|\.\\)?tools[\\/](orgo|switch|check|build_subagents|build_manifest|setup_orgo)\.mjs(\s|$)/.test(cmd);
   if (/\.env/i.test(cmd)) block("keys in .env.local are never read or written from chat. Jesse adds keys himself: node tools/add_secret.mjs NAME (in his own PowerShell window).");
   if (/approvals|pending/i.test(cmd) && /state/i.test(cmd)) block("approval records are written only from Jesse's own typed code.");
   if (/\bSTOP\b/.test(cmd) && /\b(rm|del|erase|rmdir|unlink|mv|move|ren|rename|Remove-Item|ri|Move-Item|Rename-Item)\b|>\s*\S*STOP/i.test(cmd)) block("only Jesse lifts STOP: node tools/switch.mjs stop-off, then he types the code from the window.");

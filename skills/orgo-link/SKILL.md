@@ -8,13 +8,10 @@ description: Connects the Chief of Staff to the Revenue Partner's Orgo computer 
 `tools/orgo.mjs` is the only way this workspace reaches that computer. It logs every call in `runs/`, scrubs keys out of what comes back, and changes nothing there without Jesse's approval code. The hooks block every other route (the Orgo CLI directly, reading `.env.local`).
 
 ## Once, at install
-1. `npm install --prefix tools/.orgo orgo@2.3.0 --no-audit --no-fund` (Orgo's own command-line tool, into this folder; in PowerShell type `npm.cmd` instead of `npm`).
-2. Jesse, in his own PowerShell window in this folder (never in chat):
-   - `node tools/add_secret.mjs ORGO_API_KEY`: from orgo.ai, his account's API keys page.
-   - `node tools/add_secret.mjs ORGO_COMPUTER`: the Revenue Partner computer's name as Orgo shows it.
-   - Only if `status` says the name matches more than one computer: `node tools/add_secret.mjs ORGO_WORKSPACE`.
-   - Only if the Revenue Partner runs as a named Hermes profile (`status` lists the profiles): `node tools/add_secret.mjs ORGO_PROFILE`.
-3. Check: `node tools/orgo.mjs status` prints the computer's NZ time, how far its clock is off, Hermes and the gateway. If Hermes is UNKNOWN, stop and tell Justin's team what it printed.
+1. `node tools/setup_orgo.mjs`: installs Orgo's own command-line tool into this folder (a clean reinstall each time it runs) and checks it starts. If Jesse has to run it himself, it's the same line in his own PowerShell window.
+2. Jesse, in his own PowerShell window in this folder (never in chat): `node tools/add_secret.mjs ORGO_API_KEY`, from orgo.ai → API keys in his own account.
+3. `node tools/orgo.mjs computers` lists what the key can see; pick the Revenue Partner's computer with Jesse and save it: `node tools/orgo.mjs use "<name exactly as listed>"`. Only if two share the name: `node tools/orgo.mjs workspace "<workspace>"`. Only if the Revenue Partner runs as a named Hermes profile (`status` lists the profiles): Jesse adds `node tools/add_secret.mjs ORGO_PROFILE`.
+4. Check: `node tools/orgo.mjs status` prints the computer's NZ time, how far its clock is off, Hermes and the gateway. If Hermes is UNKNOWN, stop and tell Justin's team what it printed. If any command says the tool's download is incomplete, run step 1 again.
 
 ## What needs no approval
 | Command | Does | Use when |
@@ -26,7 +23,7 @@ description: Connects the Chief of Staff to the Revenue Partner's Orgo computer 
 `hold` sets the stop file the one sender will check. Until the one sender exists, scripts that don't check it can still send. So after `hold`, go through every timer and process it listed with Jesse, and stop each one with "Changing the computer" below.
 
 ## Approvals: the window and the code
-Anything below is staged first. A window opens on Jesse's screen showing exactly what will happen and an 8-character code. The code never appears in this chat. Jesse types exactly `yes <code>` (nothing else in the message). Then `node tools/orgo.mjs apply` runs it once. If he doesn't want it, he ignores it. Staging the same kind of thing again cancels the earlier one.
+Anything below is staged first. A window opens on Jesse's screen showing exactly what will happen and an 8-character code. The code never appears in this chat. Jesse types exactly `yes <code>` (nothing else in the message). If no window shows up on his screen, he runs `node tools/approve.mjs` in his own PowerShell window instead, which shows the same text and asks for his yes. Then `node tools/orgo.mjs apply` runs it once. If he doesn't want it, he ignores it. Staging the same kind of thing again cancels the earlier one.
 
 Tell Jesse in one line what the window will show and why, then stage it. Never ask him to type a code you've seen somewhere else.
 
