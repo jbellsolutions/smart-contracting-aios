@@ -30,7 +30,7 @@ Asks 1–35 and 61–72 in the build's ledger (the partner program and outreach)
 | Ask | How |
 |---|---|
 | 84: Jesse's fixes carry across audiences ("it went back to… standard operating settings" when outreach moved from property managers to builders) | Justin's team, at the install session: one house-style note the outreach skill reads for every segment, with segment notes layered on top, so a fix made once applies everywhere unless Jesse says it's segment-only. Mirrored in `vault/_shared/voice.md` |
-| 49: run it without logging into Orgo | Jesse talks to the Chief of Staff; `revenue-partner-doctor` and `upgrade-revenue-partner` do the Orgo work |
+| 49: run it without logging into Orgo | Jesse talks to the Chief of Staff; `orgo-link` checks and fixes the computer directly (with Jesse's code for any change), and `upgrade-revenue-partner` installs upgrades through Slack |
 
 ## Sending: one sender (asks 106–111)
 Jesse's own fix list is the spec: `projects/revenue-partner-sends/SPEC.md`. The AI drafts and records approvals; one plain script sends, one at a time, after checking the stop file. Until every check passes, the stop file stays on and nothing is scheduled to send. The Chief of Staff runs the checks with `orgo-link` and reports them in the brief.

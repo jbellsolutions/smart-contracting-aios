@@ -5,7 +5,7 @@
 // - Connector tools: only reads and drafts. A tool is allowed when its name's first verb is a read verb (get,
 //   list, search, read…) or it makes a draft. Everything else (send, post, reply, create, a generic "execute"
 //   or an unknown verb) is blocked: this workspace drafts and Jesse sends. Browser clicking and typing are
-//   blocked; reading pages, scrolling and screenshots aren't. Registering a scheduled task is allowed unless STOP.
+//   blocked; reading pages, scrolling and screenshots aren't. Registering a scheduled task is allowed (routines check STOP).
 // - Files: the guards, tools, policies, settings and approval records can't be written from chat.
 // - Commands: no keys, no approval records, no removing STOP, no editing the guards, no driving the Orgo CLI
 //   directly, and no outward network writes. While state/STOP exists, no network commands at all.
@@ -47,7 +47,7 @@ if (tool === "Bash" || tool === "PowerShell") {
   if (/\borgo(\.cmd)?\s+(computers|c)\b|[\\/]orgo[\\/]dist[\\/]cli\.js|npx\s+orgo/i.test(cmd)) block("the Orgo computer is reached only through tools/orgo.mjs (it logs every call and gates changes on Jesse's code).");
   const netWrite = /\bcurl\b[^\n]*(\s-X\s*(POST|PUT|PATCH|DELETE)|\s(-d|--data\S*|--json|-F|--form\S*|-T|--upload-file)\b)|\bwget\b[^\n]*--(post|method|body)|\b(Invoke-RestMethod|Invoke-WebRequest|irm|iwr)\b[^\n]*-(Method\s+(Post|Put|Patch|Delete)|Body)\b|\bSend-MailMessage\b|\b(node|python3?|py)\s+(-e|-c|--eval)\b[^\n]*(fetch|request|urlopen|https?:)/i;
   if (netWrite.test(cmd)) block("this workspace doesn't send or change things over the network from the command line. Draft it and put it in queue/needs-jesse.md.");
-  if (stopped && /\b(curl|wget|Invoke-RestMethod|Invoke-WebRequest|irm|iwr|ssh|scp|sftp|ftp|nc|telnet)\b/i.test(cmd)) block("state/STOP exists, so no network commands. Remove it only on Jesse's word.");
+  if (stopped && /--live\b|--send\b|\b(curl|wget|Invoke-RestMethod|Invoke-WebRequest|irm|iwr|ssh|scp|sftp|ftp|nc|telnet)\b/i.test(cmd)) block("state/STOP exists, so nothing goes out. Remove it only on Jesse's word.");
   process.exit(0);
 }
 
@@ -57,10 +57,8 @@ if (tool.startsWith("mcp__")) {
   const READ = new Set(["get", "list", "search", "read", "fetch", "find", "query", "view", "describe", "show", "count", "check",
     "status", "whoami", "lookup", "look", "preview", "resolve", "inspect", "navigate", "screenshot", "tabs", "download", "export"]);
   if (tokens.includes("draft") || tokens.includes("drafts")) process.exit(0);
-  if (tokens.includes("scheduled") && tokens.includes("task") || tokens.includes("tasks") && tokens.includes("scheduled")) {
-    if (stopped) block("state/STOP exists, so no routine is registered or run. Remove it only on Jesse's word.");
-    process.exit(0);
-  }
+  // Registering a routine as a scheduled task stays on this PC, and every routine checks state/STOP itself.
+  if (tokens.includes("scheduled") && (tokens.includes("task") || tokens.includes("tasks"))) process.exit(0);
   if (tokens[tokens.length - 1] === "computer" || tokens.includes("computer")) {
     const safe = ["screenshot", "scroll", "scroll_to", "wait", "zoom", "hover"];
     if (safe.includes(String(input.action || ""))) process.exit(0);

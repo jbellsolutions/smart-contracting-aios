@@ -28,6 +28,7 @@ Find Christchurch and Canterbury homeowners asking for drain help online, sort t
 Asks 36–40 in the build's ledger. Skill: `modules/partner-program/.claude/skills/lead-radar/SKILL.md` (its groups are set up once by the module's `getting-started`); storm days: `modules/partner-program/radar/storm-day.md`.
 
 ## Platform limits, named
+- In this workspace the guard blocks browser clicks and typing, so the radar reads by opening pages (group URLs, search URLs), scrolling and reading them. A post cut off by "See more" is listed with its link for Jesse to open. It never needed to click anything else: posting, reacting and joining are Jesse's.
 - The browser radar only runs while Jesse's PC is on and he's logged into Facebook. The hosted radar (Justin's server) covers the rest.
 
 ## Profile

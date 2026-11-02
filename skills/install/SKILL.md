@@ -30,7 +30,7 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 - If the app asked "Do you trust this folder?", Jesse says yes.
 - Prove the stop guard: run the Bash command `echo install-test --send`. **It must be refused** with "Blocked: state/STOP exists". If it ran instead, the hooks are off: stop. Ask Jesse to trust the folder and restart the app, then try again. If it still runs, send Justin's team a note with what you saw.
 - Prove the key guard: ask Jesse to type `sk-test-` followed by twenty-four letter a's, with no spaces (a fake key). It must be blocked with "That looks like a key".
-- Prove Jesse's approvals: run `node tools/switch.mjs test`. A window opens on Jesse's screen with an 8-character code (it isn't shown in the chat). Jesse types exactly `yes <code>`. Then run `node tools/switch.mjs apply`: it must print "Approval test: PASS". If no window opened, stop: the Orgo link's changes can't be approved on this PC until it does; tell Justin's team.
+- Prove Jesse's approvals: run `node tools/switch.mjs test`. A window opens on Jesse's screen with an 8-character code (it isn't shown in the chat; if he can't see it, it may be behind the Claude app, so check the taskbar). Jesse types `yes` and the code. Typing is safer than dictating it, because dictation can mishear letters. Then run `node tools/switch.mjs apply`: it must print "Approval test: PASS". If no window opened, stop: the Orgo link's changes can't be approved on this PC until it does; tell Justin's team.
 - Check: the send and the key were both refused, and the approval test passed. Log all three.
 
 ## 5. The partner-program module
@@ -55,7 +55,7 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 - Jesse, in **his own PowerShell window** in this folder (Start → PowerShell, then `cd` to the folder; you give him the exact `cd` line), runs:
   - `node tools/add_secret.mjs ORGO_API_KEY` (from orgo.ai, API keys)
   - `node tools/add_secret.mjs ORGO_COMPUTER` (the Revenue Partner computer's name in Orgo)
-- Check: `node tools/orgo.mjs status` prints a `clock_off_by_seconds` line and a `binary:` line that isn't UNKNOWN.
+- Check: `node tools/orgo.mjs status` prints a `clock_off_by_seconds` line and a `binary:` line that isn't UNKNOWN. If it says the computer can't be found, the computer may sit in a different Orgo account or workspace from Jesse's key (for example Justin's team's). Stop and ask Justin's team which account holds it and whose key to use.
 - Then, while it's fresh: if `status` shows any timer or send-like process, or the stop file is absent, run `node tools/orgo.mjs hold` and go through each timer with Jesse using the "Changing the computer" steps in `skills/orgo-link/SKILL.md`. Sending stays off until `projects/revenue-partner-sends/SPEC.md` passes.
 
 ## 10. The team

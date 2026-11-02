@@ -60,10 +60,13 @@ export function stage(root, kind, text, title, what) {
 
 // Called by the approval hook with the exact prompt Jesse typed.
 export function capture(root, prompt) {
-  const m = String(prompt).trim().match(/^yes\s+([A-Za-z0-9]{8})[.!]?$/i);
+  // Exactly "yes <code>", allowing how dictation writes it: "Yes, K7QF 2M9X." The message may hold nothing else.
+  const m = String(prompt).trim().match(/^yes[\s,:;.-]+([A-Za-z0-9][A-Za-z0-9 -]{6,14}[A-Za-z0-9])[.!]*$/i);
   if (!m) return false;
+  const code = m[1].replace(/[\s-]/g, "");
+  if (code.length !== 8) return false;
   const { pending, approvals } = dirs(root);
-  const h = hashCode(m[1]);
+  const h = hashCode(code);
   if (!fs.existsSync(path.join(pending, `${h}.json`))) return false;
   fs.mkdirSync(approvals, { recursive: true });
   fs.writeFileSync(path.join(approvals, `${h}.json`), JSON.stringify({ words: String(prompt).trim().slice(0, 80), at: new Date().toISOString() }, null, 2));
