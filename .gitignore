@@ -21,3 +21,7 @@ private/
 CLIENT-CONTEXT.md
 client-context/*.md
 !client-context/CLIENT-CONTEXT.template.md
+
+# Installed at install time, never committed
+tools/.orgo/
+.env.local.tmp
