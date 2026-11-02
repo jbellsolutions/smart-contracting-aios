@@ -23,7 +23,7 @@ All paths are relative to the workspace root, the folder this repo is cloned int
 | `<role>/CONTEXT.md` | Each active specialist's work folder: its contract (Inputs, Process, Outputs, one Check) and kits; `<role>/output/` stays local | contract yes, output no |
 | `.claude/agents/<role>.md` | The subagents, made from each charter's Profile by `node tools/build_subagents.mjs` | yes |
 | `.claude/settings.json`, `tools/hooks/` | The guards (below). Changed only by Justin's team | yes |
-| `tools/` | `orgo.mjs` (the Orgo link), `add_secret.mjs` (keys), `check.mjs` (self-check), `build_subagents.mjs`, `build_manifest.mjs` | yes |
+| `tools/` | `orgo.mjs` (the Orgo link), `switch.mjs` (the local STOP), `lib/approval.mjs` (approval codes), `add_secret.mjs` (keys), `check.mjs` (self-check), `build_subagents.mjs`, `build_manifest.mjs`. Changed only by Justin's team | yes |
 | `skills/<name>/SKILL.md` | One repeatable job each. Under 500 lines | yes |
 | `routines/<name>.prompt` | One scheduled job each, created OFF | yes |
 | `projects/<name>/SPEC.md` | Bigger builds that land at a later milestone | yes |
@@ -37,7 +37,7 @@ All paths are relative to the workspace root, the folder this repo is cloned int
 | `queue/needs-jesse.md` | **The one place Jesse looks.** Every question and approval, newest first | no |
 | `queue/drafts/<role>/` | Drafts waiting for Jesse's yes | no |
 | `runs/YYYY-MM/` | One file per run: what it did and the sources it read | no |
-| `state/` | Switches (`routines-on.md`, `STOP`); `approvals/` (Jesse's typed codes, written only by the hook); `orgo-pending/`, `orgo.json` | no |
+| `state/` | Switches (`routines-on.md`, `STOP`); `pending/` (staged actions, named by a hash of their code) and `approvals/` (written only by the approval hook) | no |
 | `context/owner.md`, `context/asks.md` | Private facts from the install; the ask ledger | no |
 | `.env.local` | Keys, added by Jesse himself or through a secure prompt, never typed in chat | no |
 
@@ -96,16 +96,19 @@ Frontmatter `name:` and `description:` (third person, says when to use it). Body
 
 ## The guards (hooks, not just words)
 
-`.claude/settings.json` wires three hooks, all in Node so they run on Windows:
-- `tools/hooks/stop_guard.mjs` (before every Bash, PowerShell and connector tool call). Always blocks: connector tools that send, post, reply, forward or delete (drafts are allowed); reading or writing `.env.local`; writing `state/approvals/`; driving the Orgo CLI directly. While `state/STOP` exists it also blocks outward commands and connector tools that create or change anything. It never blocks the protective Orgo commands (`status`, `logs`, `hold`).
-- `tools/hooks/secret_scan.mjs` (every message Jesse types) blocks anything shaped like a key and says how keys go in.
-- `tools/hooks/approval_capture.mjs` (every message Jesse types) records `yes <code>` in `state/approvals/<code>.json`.
+`.claude/settings.json` wires three hooks, all in Node so they run on Windows. They guard against mistakes and injected instructions (an email or web page telling the agent to do something). They aren't a wall against someone with a shell on this PC.
+- `tools/hooks/stop_guard.mjs`, before every Bash, PowerShell, Write/Edit and connector tool call:
+  - **Connector tools only read or draft.** A tool is allowed when its first verb is a read (get, list, search, read…) or it makes a draft. Sends, posts, replies, creates, generic "execute" tools and unknown verbs are blocked. Browser clicking and typing are blocked; reading pages, scrolling and screenshots aren't. Registering a scheduled task is allowed unless STOP is on.
+  - **Protected files** can't be written from chat: `.claude/`, `tools/`, `policies/`, `state/approvals/`, `state/pending/`, `.env.local`.
+  - **Commands**: no reading keys, no writing approval records, no removing STOP, no editing the guards, no driving the Orgo CLI directly, and no network writes (POSTs, uploads, mail). While `state/STOP` exists, no network commands at all. The protective Orgo commands (`status`, `logs`, `hold`) are never blocked.
+- `tools/hooks/secret_scan.mjs`, on every message Jesse types: blocks anything shaped like a key and says how keys go in.
+- `tools/hooks/approval_capture.mjs`, on every message Jesse types: records an approval when the whole message is exactly `yes <code>` for something staged.
 
-Hooks only run once the folder is trusted and `node` is on the PATH the Claude app sees, and a hook that can't run doesn't block. That's why the install proves both guards fire. `permissions.deny` keeps the model out of `.env.local`, the guard files and `state/approvals/`, and denies `git push` and `rm -rf`.
+Hooks only run once the folder is trusted and `node` is on the PATH the Claude app sees, and a hook that can't run doesn't block. That's why the install proves each guard fires. `permissions.deny` repeats the file protections and denies `git push` and `rm -rf`. `node tools/check.mjs` fails if a `.claude/settings.local.json` turns hooks off.
 
 ## Jesse's typed approval codes
 
-Anything that changes another computer, or turns a guarded thing back on, is staged first and shows Jesse a 6-character code tied to that exact action (`node tools/orgo.mjs plan "<command>"`). Only Jesse typing `yes <code>` in the chat approves it: the hook records his words, and the tool uses the record once. An edited action gets a new code. An email, a Slack message, a web page or the model itself can't approve anything.
+Anything that changes the Revenue Partner's computer, asks it a question, turns its sending back on, or lifts `state/STOP` here is staged first (`tools/orgo.mjs` or `tools/switch.mjs`). A window opens on Jesse's screen showing exactly what will happen and an 8-character code. The code never appears in the chat or in any file, so the model can't approve anything itself. Only a message that is exactly `yes <code>`, typed by Jesse, approves it; the tool's `apply` step then does it once. Staging the same kind of thing again cancels the earlier one. An email, a Slack message, a web page or the model itself can't approve anything.
 
 ## The partner-program module
 

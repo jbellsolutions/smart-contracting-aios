@@ -60,8 +60,7 @@ Run the new job once in test mode on one real example, read-only, with its outpu
 - Update `vault/_shared/roadmap.md` (`roadmap` skill).
 
 ## Never
-- Edit `.claude/settings.json` or `tools/hooks/` (the guards). If a build needs a guard changed, it's a project spec for Justin's team.
-- Change `policies/APPROVALS.md` without Jesse's typed `yes <code>` for that exact line.
+- Edit anything under `.claude/`, `tools/` or `policies/` (the guards, the tools and the rules; the hooks block it anyway). If a build needs one changed, it's a project spec for Justin's team.
 - Switch on a routine, remove `state/STOP`, connect an account or spend money as part of a build.
 - Build a piece that sends, posts or changes another system by itself. It drafts; Jesse sends.
 - Invent a fact, price, rate or result to make a piece look finished. Unknown stays UNKNOWN.

@@ -5,12 +5,16 @@
       "Read(./.env)",
       "Edit(./.env.local)",
       "Write(./.env.local)",
-      "Edit(./.claude/settings.json)",
-      "Write(./.claude/settings.json)",
-      "Edit(./tools/hooks/**)",
-      "Write(./tools/hooks/**)",
+      "Edit(./.claude/**)",
+      "Write(./.claude/**)",
+      "Edit(./tools/**)",
+      "Write(./tools/**)",
+      "Edit(./policies/**)",
+      "Write(./policies/**)",
       "Edit(./state/approvals/**)",
       "Write(./state/approvals/**)",
+      "Edit(./state/pending/**)",
+      "Write(./state/pending/**)",
       "Bash(rm -rf:*)",
       "Bash(git push:*)",
       "Bash(orgo:*)",
@@ -21,6 +25,12 @@
     "PreToolUse": [
       {
         "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/tools/hooks/stop_guard.mjs\"" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/tools/hooks/stop_guard.mjs\"" }
         ]

@@ -1,30 +1,26 @@
 #!/usr/bin/env node
 // The Chief of Staff's link to the Revenue Partner's Orgo computer. See skills/orgo-link/SKILL.md.
 //
-//   node tools/orgo.mjs status                 read-only: clock, Hermes, gateway, stop files, timers, send-like processes
+//   node tools/orgo.mjs status                 read-only: NZ time and clock drift, Hermes and its profiles, the gateway,
+//                                              the stop files, every timer (per profile) and any send-like process
 //   node tools/orgo.mjs logs [lines] [gateway|errors|agent]   read-only: tail one Hermes log
 //   node tools/orgo.mjs hold                   protective: create the stop file, then list every timer (never blocked)
-//   node tools/orgo.mjs allow-ask [code]       turn on `ask` (needs Jesse's "yes <code>")
-//   node tools/orgo.mjs ask "question"         one message to the Revenue Partner; the reply comes back here only
-//   node tools/orgo.mjs plan "command"         stage one command that changes the computer; prints its code
-//   node tools/orgo.mjs run <code>             run a staged command, only after Jesse typed "yes <code>" in chat
-//   node tools/orgo.mjs sends-on [code]        remove the stop file (needs Jesse's "yes <code>")
+//   node tools/orgo.mjs ask "question"         stage one question to the Revenue Partner (needs Jesse's code each time)
+//   node tools/orgo.mjs plan "command"         stage one command that changes the computer (needs Jesse's code)
+//   node tools/orgo.mjs sends-on               stage removing the stop file (needs Jesse's code)
+//   node tools/orgo.mjs apply                  run the one staged item Jesse has approved, once
 //
-// Keys come from .env.local (ORGO_API_KEY, ORGO_COMPUTER, and ORGO_WORKSPACE if the name is shared) and are never printed. Jesse's "yes <code>" is
-// recorded by tools/hooks/approval_capture.mjs from what he types, into state/approvals/, which the model
-// can't write (settings.json deny rules and the stop guard). Every call is logged in runs/.
+// Approvals: tools/lib/approval.mjs shows the code in a window on Jesse's screen, never in the chat, and only
+// Jesse typing exactly "yes <code>" approves it. Keys come from .env.local (ORGO_API_KEY, ORGO_COMPUTER, and
+// ORGO_WORKSPACE / ORGO_PROFILE when needed) and are never printed. Every call is logged in runs/.
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stage, take } from "./lib/approval.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = path.join(ROOT, "tools", ".orgo", "node_modules", "orgo", "dist", "cli.js");
-const STATE = path.join(ROOT, "state");
-const APPROVALS = path.join(STATE, "approvals");
-const PENDING = path.join(STATE, "orgo-pending");
-const SETTINGS = path.join(STATE, "orgo.json");
 
 function die(msg, code = 1) { console.error(msg); process.exit(code); }
 
@@ -33,13 +29,14 @@ function env() {
   const file = path.join(ROOT, ".env.local");
   if (fs.existsSync(file)) {
     for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
-      const m = line.match(/^(ORGO_API_KEY|ORGO_COMPUTER|ORGO_WORKSPACE)=(.*)$/);
+      const m = line.match(/^(ORGO_API_KEY|ORGO_COMPUTER|ORGO_WORKSPACE|ORGO_PROFILE)=(.*)$/);
       if (m) vals[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
     }
   }
-  if (!vals.ORGO_API_KEY) die("No ORGO_API_KEY. Jesse adds it himself: node tools/add_secret.mjs ORGO_API_KEY", 4);
-  if (!vals.ORGO_COMPUTER) die("No ORGO_COMPUTER (the Revenue Partner computer's name or id). Add it: node tools/add_secret.mjs ORGO_COMPUTER", 4);
-  if (!fs.existsSync(CLI)) die("The Orgo CLI isn't installed here. Run: npm install --prefix tools/.orgo orgo@2.3.0 --no-audit --no-fund", 4);
+  if (!vals.ORGO_API_KEY) die("No ORGO_API_KEY. Jesse adds it himself, in his own PowerShell window: node tools/add_secret.mjs ORGO_API_KEY", 4);
+  if (!vals.ORGO_COMPUTER) die("No ORGO_COMPUTER (the Revenue Partner computer's name or id). Jesse adds it: node tools/add_secret.mjs ORGO_COMPUTER", 4);
+  if (!fs.existsSync(CLI)) die("The Orgo CLI isn't installed here. Run: npm install --prefix tools/.orgo orgo@2.3.0 --no-audit --no-fund (in PowerShell: npm.cmd ...)", 4);
+  if (vals.ORGO_PROFILE && !/^[\w.-]+$/.test(vals.ORGO_PROFILE)) die("ORGO_PROFILE must be a plain profile name.", 4);
   return vals;
 }
 
@@ -56,7 +53,7 @@ export function scrub(text) {
     .replace(/\b[A-Za-z0-9+/]{48,}={0,2}/g, "[redacted-b64]");
 }
 
-// Shell prelude run on the computer: find Hermes, the user it runs as, and that user's home. Read-only.
+// Shell prelude run on the computer: find Hermes, the user it runs as, that user's home, and its profiles. Read-only.
 const PRELUDE = String.raw`
 set +e
 H=$(command -v hermes 2>/dev/null)
@@ -65,6 +62,8 @@ U=""; [ -n "$H" ] && U=$(stat -c %U "$(readlink -f "$H")" 2>/dev/null)
 HH=""; [ -n "$U" ] && HH=$(getent passwd "$U" | cut -d: -f6)
 as_u() { if [ "$(id -un)" = root ] && [ -n "$U" ] && [ "$U" != root ]; then runuser -u "$U" -- "$@"; else "$@"; fi; }
 STOPFILE="$HH/PartnerDesk/state/SEND-STOP"
+PROFILES="default"; [ -d "$HH/.hermes/profiles" ] && PROFILES="default $(ls -1 "$HH/.hermes/profiles" 2>/dev/null | tr '\n' ' ')"
+pflag() { [ "$1" = default ] && return; echo "-p $1"; }
 `;
 
 const TIMERS = String.raw`
@@ -76,18 +75,19 @@ echo "## timers"
 for u in root $(ls /home 2>/dev/null); do c=$(crontab -l -u "$u" 2>/dev/null); [ -n "$c" ] && { echo "-- crontab $u"; echo "$c"; }; done
 command -v atq >/dev/null 2>&1 && { echo "-- at jobs"; atq; }
 systemctl list-timers --no-pager 2>/dev/null | head -12
-echo "## hermes jobs"
-[ -n "$H" ] && as_u timeout 60 "$H" cron list 2>&1 | head -40 || echo "UNKNOWN: no hermes"
+echo "## hermes jobs, per profile"
+if [ -n "$H" ]; then for p in $PROFILES; do echo "-- profile $p"; as_u timeout 60 "$H" $(pflag "$p") cron list 2>&1 | head -40; done; else echo "UNKNOWN: no hermes"; fi
 `;
 
 const STATUS = PRELUDE + String.raw`
 echo "## clock"
-echo "box_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "box_epoch: $(date +%s)"
 echo "box_nz: $(TZ=Pacific/Auckland date '+%Y-%m-%d %H:%M %Z')"
 timedatectl show -p NTPSynchronized -p Timezone 2>/dev/null || echo "ntp: UNKNOWN"
 echo "## hermes"
 [ -n "$H" ] && echo "binary: $H" || echo "binary: UNKNOWN"
 [ -n "$U" ] && echo "runs_as: $U" || echo "runs_as: UNKNOWN"
+echo "profiles: $PROFILES"
 [ -n "$H" ] && as_u timeout 30 "$H" --version 2>&1 | head -2
 [ -n "$H" ] && as_u timeout 30 "$H" profile list 2>&1 | head -15
 echo "## gateway"
@@ -106,121 +106,98 @@ function onBox(vals, script, timeoutSec = 120) {
   return { code: r.status ?? 1, out: scrub(r.stdout || ""), err: scrub(r.stderr || "") };
 }
 
+const nzNow = () => new Date().toLocaleString("en-NZ", { timeZone: "Pacific/Auckland" });
+
 function logRun(sub, outcome, result, extra = "") {
-  const now = new Date();
-  const nz = now.toLocaleString("en-NZ", { timeZone: "Pacific/Auckland" });
-  const day = now.toLocaleDateString("en-CA", { timeZone: "Pacific/Auckland" });
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Pacific/Auckland" });
   const dir = path.join(ROOT, "runs", day.slice(0, 7));
   fs.mkdirSync(dir, { recursive: true });
-  const line = `\n## ${nz} · orgo ${sub}\n- Outcome: ${outcome}\n- Result: ${result}\n${extra}- Sources read: orgo:${process.env.ORGO_COMPUTER_LABEL || "revenue-partner computer"}\n`;
-  fs.appendFileSync(path.join(dir, `${day}-chief-of-staff-orgo.md`), line);
+  fs.appendFileSync(path.join(dir, `${day}-chief-of-staff-orgo.md`),
+    `\n## ${nzNow()} (NZ) · orgo ${sub}\n- Outcome: ${outcome}\n- Result: ${result}\n${extra}- Sources read: orgo:${process.env.ORGO_COMPUTER_LABEL || "revenue-partner computer"}\n`);
 }
 
-function codeFor(kind, text, computer) {
-  return createHash("sha256").update(`${kind}\n${computer}\n${text}`).digest("hex").slice(0, 6);
-}
-
-function stage(kind, text, computer) {
-  const code = codeFor(kind, text, computer);
-  fs.mkdirSync(PENDING, { recursive: true });
-  fs.writeFileSync(path.join(PENDING, `${code}.json`), JSON.stringify({ kind, text, created: Date.now() }, null, 2));
-  return code;
-}
-
-// An approval counts only if the hook wrote it from Jesse's own typed words after the item was staged.
-function consumeApproval(code, kind) {
-  const p = path.join(PENDING, `${code}.json`);
-  if (!/^[0-9a-f]{6}$/.test(code || "") || !fs.existsSync(p)) die(`Nothing staged under code ${code}.`, 5);
-  const pending = JSON.parse(fs.readFileSync(p, "utf8"));
-  if (pending.kind !== kind) die(`Code ${code} was staged for ${pending.kind}, not ${kind}.`, 5);
-  const a = path.join(APPROVALS, `${code}.json`);
-  if (!fs.existsSync(a)) die(`No approval for ${code}. Jesse types "yes ${code}" in this chat himself; nothing else counts.`, 5);
-  const approval = JSON.parse(fs.readFileSync(a, "utf8"));
-  if (Date.parse(approval.at) < pending.created) die(`The approval for ${code} is older than what was staged. Ask Jesse again.`, 5);
-  fs.rmSync(a); fs.rmSync(p);
-  return { pending, approval };
-}
+const show = (r) => console.log(r.out || r.err);
+const done = (r) => process.exit(r.code === 0 ? 0 : 2);
+const stopped = () => fs.existsSync(path.join(ROOT, "state", "STOP"));
 
 function main() {
   const [sub, ...args] = process.argv.slice(2);
   if (!sub || sub === "help") { console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\nimport ")[0]); return; }
   const vals = env();
   process.env.ORGO_COMPUTER_LABEL = vals.ORGO_COMPUTER;
+  const profile = vals.ORGO_PROFILE ? `-p ${vals.ORGO_PROFILE}` : "";
 
   if (sub === "status") {
     const r = onBox(vals, STATUS, 150);
-    console.log(`this_pc_utc: ${new Date().toISOString().slice(0, 19)}Z`);
-    console.log(r.out || r.err);
+    const out = r.out.replace(/^box_epoch: (\d+)$/m, (_, e) => `clock_off_by_seconds: ${Math.round(Number(e) - Date.now() / 1000)} (the computer vs this PC; over 30 is a problem)`);
+    console.log(`this_pc_nz: ${nzNow()}`);
+    console.log(out || r.err);
     logRun("status", r.code === 0 ? "EXECUTED" : "FAILED", r.code === 0 ? "read the computer's state" : "couldn't reach the computer");
-    process.exit(r.code === 0 ? 0 : 2);
+    done(r);
   }
 
   if (sub === "logs") {
     const n = Math.min(parseInt(args[0] || "80", 10) || 80, 500);
     const file = ["gateway", "errors", "agent"].includes(args[1]) ? args[1] : "gateway";
-    const r = onBox(vals, PRELUDE + `[ -n "$HH" ] && tail -n ${n} "$HH/.hermes/logs/${file}.log" 2>&1 || echo "UNKNOWN: no Hermes home found"`, 60);
-    console.log(r.out || r.err);
+    const dir = vals.ORGO_PROFILE ? `$HH/.hermes/profiles/${vals.ORGO_PROFILE}/logs` : "$HH/.hermes/logs";
+    const r = onBox(vals, PRELUDE + `[ -n "$HH" ] && tail -n ${n} "${dir}/${file}.log" 2>&1 || echo "UNKNOWN: no Hermes home found"`, 60);
+    show(r);
     logRun(`logs ${file}`, r.code === 0 ? "EXECUTED" : "FAILED", `last ${n} lines of ${file}.log`);
-    process.exit(r.code === 0 ? 0 : 2);
+    done(r);
   }
 
   if (sub === "hold") {
-    // Protective: never needs an approval and is never blocked by state/STOP.
-    const script = PRELUDE + `[ -n "$HH" ] && { mkdir -p "$HH/PartnerDesk/state" && touch "$STOPFILE" && chown -R "$U" "$HH/PartnerDesk/state" 2>/dev/null; }\ntouch /tmp/SEND-HOLD\necho "hold set"\n` + TIMERS;
+    // Protective: never needs an approval and is never blocked by state/STOP. It only adds the stop file.
+    const script = PRELUDE + `[ -n "$HH" ] && { mkdir -p "$HH/PartnerDesk/state" && touch "$STOPFILE" && chown "$U" "$HH/PartnerDesk/state" "$STOPFILE" 2>/dev/null; }\ntouch /tmp/SEND-HOLD\necho "hold set"\n` + TIMERS;
     const r = onBox(vals, script, 120);
-    console.log(r.out || r.err);
-    console.log("\nThe stop file is set. Until the one sender exists, scripts that don't check it can still send: stop each timer above with `plan` and Jesse's yes.");
+    show(r);
+    console.log("\nThe stop file is set. Until the one sender exists, scripts that don't check it can still send: stop each timer above with `plan` and Jesse's code.");
     logRun("hold", r.code === 0 ? "EXECUTED" : "FAILED", "stop file set; timers listed");
-    process.exit(r.code === 0 ? 0 : 2);
-  }
-
-  if (sub === "allow-ask" || sub === "sends-on") {
-    const label = sub === "allow-ask" ? "let the Chief of Staff ask the Revenue Partner questions" : "turn sending back on (remove the stop file)";
-    if (!args[0]) {
-      const code = stage(sub, label, vals.ORGO_COMPUTER);
-      console.log(`To ${label}, Jesse types in this chat:\n\n    yes ${code}\n`);
-      return;
-    }
-    const { approval } = consumeApproval(args[0], sub);
-    if (sub === "allow-ask") {
-      fs.mkdirSync(STATE, { recursive: true });
-      fs.writeFileSync(SETTINGS, JSON.stringify({ askAllowed: true, by: approval.words, at: approval.at }, null, 2));
-      console.log("ask is on.");
-      logRun("allow-ask", "EXECUTED", "ask turned on", `- Jesse's words: ${approval.words}\n`);
-      return;
-    }
-    const r = onBox(vals, PRELUDE + `rm -f "$STOPFILE" /tmp/SEND-HOLD && echo "stop file removed"`, 60);
-    console.log(r.out || r.err);
-    logRun("sends-on", r.code === 0 ? "EXECUTED" : "FAILED", "stop file removed", `- Jesse's words: ${approval.words}\n`);
-    process.exit(r.code === 0 ? 0 : 2);
+    done(r);
   }
 
   if (sub === "ask") {
-    const msg = args.join(" ").trim();
-    if (!msg) die('Usage: node tools/orgo.mjs ask "question"');
-    const s = fs.existsSync(SETTINGS) ? JSON.parse(fs.readFileSync(SETTINGS, "utf8")) : {};
-    if (!s.askAllowed) die("ask is off. The first message to the Revenue Partner needs Jesse's go-ahead: node tools/orgo.mjs allow-ask", 5);
-    const script = PRELUDE + `[ -z "$H" ] && { echo "UNKNOWN: no hermes"; exit 3; }\nMSG=$(echo ${b64(msg)} | base64 -d)\nas_u timeout -k 10 300 "$H" chat -q "$MSG" -Q --source tool --max-turns 8 2>&1 | tail -n 200`;
-    const r = onBox(vals, script, 330);
-    console.log(r.out || r.err);
-    logRun("ask", r.code === 0 ? "EXECUTED" : "FAILED", `asked: ${scrub(msg).slice(0, 120)}`);
-    process.exit(r.code === 0 ? 0 : 2);
+    const q = args.join(" ").trim();
+    if (!q) die('Usage: node tools/orgo.mjs ask "question"');
+    if (stopped()) die("state/STOP exists. A question starts an AI session on the Revenue Partner's computer that could act, so it waits until Jesse lifts STOP. `status` and `logs` still work.", 5);
+    stage(ROOT, "orgo-ask", q, "Question for the Revenue Partner", "This starts a short session with the Revenue Partner on its computer to answer one question. It's told not to send, schedule, approve, delete or change anything. The question:");
+    return;
   }
 
   if (sub === "plan") {
     const cmd = args.join(" ").trim();
     if (!cmd) die('Usage: node tools/orgo.mjs plan "command to run on the computer"');
-    const code = stage("run", cmd, vals.ORGO_COMPUTER);
-    console.log(`This changes the Revenue Partner's computer. It runs exactly:\n\n    ${cmd}\n\nTo allow it once, Jesse types in this chat:\n\n    yes ${code}\n\nThen: node tools/orgo.mjs run ${code}`);
+    stage(ROOT, "orgo-run", cmd, "Change the Revenue Partner's computer", "This changes the Revenue Partner's computer. It runs exactly this command, once:");
     return;
   }
 
-  if (sub === "run") {
-    const { pending, approval } = consumeApproval(args[0], "run");
-    const r = onBox(vals, PRELUDE + pending.text, 300);
-    console.log(r.out || r.err);
-    logRun("run", r.code === 0 ? "EXECUTED" : "FAILED", `ran: ${scrub(pending.text).slice(0, 160)}`, `- Jesse's words: ${approval.words}\n`);
-    process.exit(r.code === 0 ? 0 : 2);
+  if (sub === "sends-on") {
+    stage(ROOT, "orgo-sends-on", "remove the stop file on the Revenue Partner's computer", "Turn the Revenue Partner's sending back on", "This turns the Revenue Partner's sending back on. Only do it once every check in projects/revenue-partner-sends/SPEC.md has passed. It will:");
+    return;
+  }
+
+  if (sub === "apply") {
+    const item = take(ROOT, ["orgo-ask", "orgo-run", "orgo-sends-on"]);
+    const words = `- Jesse's words: ${item.words}\n`;
+    if (item.kind === "orgo-ask") {
+      if (stopped()) die("state/STOP exists; the question wasn't asked.", 5);
+      const prompt = `Answer this one question from Jesse's Chief of Staff. Answer only: do not send, schedule, approve, delete or change anything, and do not start any job. Question: ${item.text}`;
+      const script = PRELUDE + `[ -z "$H" ] && { echo "UNKNOWN: no hermes"; exit 3; }\nMSG=$(echo ${b64(prompt)} | base64 -d)\nas_u timeout -k 10 300 "$H" ${profile} chat -q "$MSG" -Q --source tool --max-turns 4 2>&1 | tail -n 200`;
+      const r = onBox(vals, script, 330);
+      show(r);
+      logRun("ask", r.code === 0 ? "EXECUTED" : "FAILED", `asked: ${scrub(item.text).slice(0, 120)}`, words);
+      done(r);
+    }
+    if (item.kind === "orgo-sends-on") {
+      const r = onBox(vals, PRELUDE + `rm -f "$STOPFILE" /tmp/SEND-HOLD && echo "stop file removed"`, 60);
+      show(r);
+      logRun("sends-on", r.code === 0 ? "EXECUTED" : "FAILED", "stop file removed", words);
+      done(r);
+    }
+    const r = onBox(vals, PRELUDE + item.text, 300);
+    show(r);
+    logRun("run", r.code === 0 ? "EXECUTED" : "FAILED", `ran: ${scrub(item.text).slice(0, 160)}`, words);
+    done(r);
   }
 
   die(`Unknown command: ${sub}. Run: node tools/orgo.mjs help`);

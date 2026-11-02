@@ -3,7 +3,7 @@
 A loop is a chain of jobs started by an event. Each step is one specialist's run under the run contract (`docs/CONVENTIONS.md`): it drafts, logs, and hands on through a file. Nothing leaves the workspace without Jesse's yes. Three rules keep loops safe:
 
 1. **One key per thing.** Every loop item has a stable key, such as `radar-<post id>` or `jobs-<job id>-rainday-<date>`. A step first looks for its key in its output and the queue. If it's there, the step does nothing. So a repeated event, or a re-run after a failure, never makes a second draft or a second send.
-2. **Approval doesn't send.** Jesse's yes ticks the queue item, with the draft's hash. This workspace drafts; Jesse sends from his own apps, or the Revenue Partner's one sender sends partner emails. The evening brief lists everything that went out.
+2. **Approval doesn't send.** Jesse's yes ticks the queue item, with the draft's hash. This workspace drafts (the guard lets connector tools only read or draft); Jesse sends from his own apps, or the Revenue Partner's one sender sends partner emails. A loop that should send by itself needs Justin's team to open that one send path. The evening brief lists everything that went out.
 3. **A quiet step logs NO_CHANGE and messages no one.** The briefs report what moved.
 
 ## The loops

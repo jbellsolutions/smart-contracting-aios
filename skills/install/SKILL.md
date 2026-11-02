@@ -22,7 +22,7 @@ Before step 1, say: "I'll set everything up and check each piece as I go. You'll
 - After installing Node: Jesse closes and reopens the Claude app, so it finds `node` (the app ignores PowerShell profiles). Then he opens this folder again and says "carry on with the install".
 
 ## 3. Nothing goes out yet
-- Create the working folders: `queue/drafts`, `runs`, `state`. Create `state/STOP` with the line `Created at install. Jesse removes it when he's ready.`
+- Create the working folders `queue/drafts` and `runs`, then `node tools/switch.mjs stop-on` (creates `state/STOP`).
 - Check: `state/STOP` exists.
 
 ## 4. The guards are on
@@ -30,7 +30,8 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 - If the app asked "Do you trust this folder?", Jesse says yes.
 - Prove the stop guard: run the Bash command `echo install-test --send`. **It must be refused** with "Blocked: state/STOP exists". If it ran instead, the hooks are off: stop. Ask Jesse to trust the folder and restart the app, then try again. If it still runs, send Justin's team a note with what you saw.
 - Prove the key guard: ask Jesse to type `sk-test-` followed by twenty-four letter a's, with no spaces (a fake key). It must be blocked with "That looks like a key".
-- Check: both refused. Log both.
+- Prove Jesse's approvals: run `node tools/switch.mjs test`. A window opens on Jesse's screen with an 8-character code (it isn't shown in the chat). Jesse types exactly `yes <code>`. Then run `node tools/switch.mjs apply`: it must print "Approval test: PASS". If no window opened, stop: the Orgo link's changes can't be approved on this PC until it does; tell Justin's team.
+- Check: the send and the key were both refused, and the approval test passed. Log all three.
 
 ## 5. The partner-program module
 - `git clone https://github.com/jbellsolutions/smart-contracting-dream-team modules/partner-program`
@@ -46,14 +47,15 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 
 ## 8. Slack
 - Jesse: Claude app → Settings → Connectors → Slack → Connect, and he signs in himself.
-- Check: read the latest message in #mike-and-jesse-drainage and quote its first line back. Then list the Slack tools you can see, and confirm at least one has `send` in its name; log the names. The stop guard blocks every connector tool named send, post, reply, forward or delete, so this workspace only ever drafts in Slack.
+- Check: read the latest message in #mike-and-jesse-drainage and quote its first line back. List the Slack tools you can see and log their names.
+- Prove the connector guard: try Slack's send-message tool once, to Jesse's own DM, with the text "install test: if you can read this, the guard is off". It must be refused with "Blocked". If it went through, Jesse gets a harmless note to himself and the guard is off: stop and tell Justin's team. This workspace only ever reads and drafts through connectors.
 
 ## 9. The Orgo link
-- `npm install --prefix tools/.orgo orgo@2.3.0 --no-audit --no-fund`
+- `npm install --prefix tools/.orgo orgo@2.3.0 --no-audit --no-fund` (if this runs in PowerShell, use `npm.cmd`)
 - Jesse, in **his own PowerShell window** in this folder (Start → PowerShell, then `cd` to the folder; you give him the exact `cd` line), runs:
   - `node tools/add_secret.mjs ORGO_API_KEY` (from orgo.ai, API keys)
   - `node tools/add_secret.mjs ORGO_COMPUTER` (the Revenue Partner computer's name in Orgo)
-- Check: `node tools/orgo.mjs status` prints a `box_utc` line and a `binary:` line that isn't UNKNOWN.
+- Check: `node tools/orgo.mjs status` prints a `clock_off_by_seconds` line and a `binary:` line that isn't UNKNOWN.
 - Then, while it's fresh: if `status` shows any timer or send-like process, or the stop file is absent, run `node tools/orgo.mjs hold` and go through each timer with Jesse using the "Changing the computer" steps in `skills/orgo-link/SKILL.md`. Sending stays off until `projects/revenue-partner-sends/SPEC.md` passes.
 
 ## 10. The team

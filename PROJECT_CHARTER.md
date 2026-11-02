@@ -13,7 +13,7 @@
 
 ## 1. Why this project exists
 
-Smart Contracting is a small residential drainage company that's "quite top heavy and system heavy". Jesse and Mike lose hours to admin (Mike on invoicing "for hours"), work across tools that don't talk to each other (Ascora, Xero, GoHighLevel, a vehicle tracker, Slack, Claude), and can't see their true numbers at any moment. And more work needs to come in the door.
+Smart Contracting is a small residential drainage company with more systems than it needs. Jesse and Mike lose hours to admin (Mike on invoicing "for hours"), work across tools that don't talk to each other (Ascora, Xero, GoHighLevel, a vehicle tracker, Slack, Claude), and can't see their true numbers at any moment. And more work needs to come in the door.
 
 The Revenue Partner already finds partner prospects and drafts outreach. This project makes it "just one cog": one chat that runs the whole business, learns as Jesse teaches it, and hands back time.
 

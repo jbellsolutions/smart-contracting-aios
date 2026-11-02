@@ -11,7 +11,7 @@ Their always-on agent. Today it finds partner prospects, drafts cold emails for 
 
 | | |
 |---|---|
-| **Owner** | Jesse. Changes reach it only through `upgrade-revenue-partner` (the Workshop skill) or Jesse's own Slack messages. |
+| **Owner** | Jesse. Changes reach it only through `upgrade-revenue-partner` (the Workshop skill), Jesse's own Slack messages, or `skills/orgo-link` with the code Jesse types for that exact change. |
 | **Reads** | Its own skills and files on its computer; Jesse's Slack messages |
 | **Only writer of** | The outreach tracker and suppression list (its existing skills); partner, referral, campaign, payout, call-card and outbox records in `~/PartnerDesk` through `partner_ledger.py` |
 | **Produces** | Daily partner drafts; reply alerts and call cards; the Friday scoreboard |
@@ -39,7 +39,7 @@ Jesse's own fix list is the spec: `projects/revenue-partner-sends/SPEC.md`. The 
 Justin, Oct 28: "sending out the emails for you is great. There's so much more [it] could be doing." Jobs that must run while Jesse's PC sleeps belong here, decided with Justin at M1–M2 (ask 105): receiving Ascora's webhooks (quote accepted, job booked), emailing Mike his money snapshot once Jesse approves that as a standing job, and the hosted radar's hand-off. Each one goes on only through `upgrade-revenue-partner` and Jesse's yes.
 
 ## Platform limits, named
-- Its crons run in UTC (07:30 NZDT shows as 18:30). Never change its clock or time zone.
+- Its crons run in UTC (07:30 NZDT shows as 18:30). Don't change its time zone. Fixing the clock's sync (NTP) is requirement 3 of `projects/revenue-partner-sends/SPEC.md`, done with Jesse's code.
 - It runs on OpenRouter credit; `scdt-credit-watch` warns before it runs out.
 
 ## Profile

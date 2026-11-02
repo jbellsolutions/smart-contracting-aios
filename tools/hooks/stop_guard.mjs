@@ -1,43 +1,73 @@
 #!/usr/bin/env node
-// PreToolUse hook (Bash and connector tools). Exit 2 blocks the call and tells Claude why.
-// Always blocked: touching state/approvals (only Jesse's typed "yes <code>" writes there), reading .env.local,
-// driving the Orgo CLI directly (tools/orgo.mjs is the only door), and connector tools that send, post,
-// reply, forward or delete (this workspace drafts; Jesse sends).
-// While state/STOP exists, also blocked: outward Bash commands and connector tools that create or change
-// anything outside this PC. Protective Orgo commands (status, logs, hold) are never blocked.
+// PreToolUse hook for Bash, PowerShell, Write/Edit and every connector (mcp__) tool. Exit 2 blocks the call and
+// tells Claude why. It guards against mistakes and injected instructions; it isn't a wall against someone with
+// a shell on this PC. What it enforces:
+// - Connector tools: only reads and drafts. A tool is allowed when its name's first verb is a read verb (get,
+//   list, search, read…) or it makes a draft. Everything else (send, post, reply, create, a generic "execute"
+//   or an unknown verb) is blocked: this workspace drafts and Jesse sends. Browser clicking and typing are
+//   blocked; reading pages, scrolling and screenshots aren't. Registering a scheduled task is allowed unless STOP.
+// - Files: the guards, tools, policies, settings and approval records can't be written from chat.
+// - Commands: no keys, no approval records, no removing STOP, no editing the guards, no driving the Orgo CLI
+//   directly, and no outward network writes. While state/STOP exists, no network commands at all.
 import fs from "node:fs";
 import path from "node:path";
 
-let raw = "";
-try { raw = fs.readFileSync(0, "utf8"); } catch { process.exit(0); }
 let p;
-try { p = JSON.parse(raw); } catch { process.exit(0); }
+try { p = JSON.parse(fs.readFileSync(0, "utf8")); } catch { process.exit(0); }
 const root = process.env.CLAUDE_PROJECT_DIR || p.cwd || process.cwd();
 const stopped = fs.existsSync(path.join(root, "state", "STOP"));
-const tool = p.tool_name || "";
+const tool = String(p.tool_name || "");
 const input = p.tool_input || {};
 const block = (why) => { process.stderr.write(`Blocked: ${why}\n`); process.exit(2); };
 
+const PROTECTED = /(^|[\\/])(\.claude|tools|policies)([\\/]|$)|settings(\.local)?\.json|state[\\/]+(approvals|pending)|\.env/i;
+
+// Files written through Claude's own tools
+if (["Write", "Edit", "MultiEdit", "NotebookEdit"].includes(tool)) {
+  const file = String(input.file_path || input.notebook_path || "");
+  const rel = path.relative(root, path.resolve(root, file)).replace(/\\/g, "/");
+  if (rel.startsWith("..") ) process.exit(0);
+  if (PROTECTED.test(rel)) block(`${rel} is one of the guards, tools, policies or approval records. Those change only through Justin's team (git pull) or Jesse himself. Put the proposed change in queue/needs-jesse.md.`);
+  process.exit(0);
+}
+
 if (tool === "Bash" || tool === "PowerShell") {
   const cmd = String(input.command || "");
-  if (/state[\\/]+approvals/i.test(cmd)) block("state/approvals is written only by Jesse's own \"yes <code>\" in chat.");
-  if (/\.env\.local\b|\.env\b(?![\w.-])/i.test(cmd)) block("keys in .env.local are never read or written from chat. Jesse adds keys himself: node tools/add_secret.mjs NAME (in his own terminal).");
-  if (/\borgo(\.cmd)?\s+(computers|c)\b|[\\/]orgo[\\/]dist[\\/]cli\.js/i.test(cmd)) block("the Orgo computer is reached only through tools/orgo.mjs (it logs every call and gates changes on Jesse's yes).");
-  if (stopped) {
-    const outward = /--live\b|--send\b|\bcurl\b[^|;&]*\s-X\s*(POST|PATCH|PUT|DELETE)|\bcurl\b[^|;&]*\s(-d|--data\S*)\s|Invoke-(RestMethod|WebRequest)[^|;]*-Method\s+(Post|Put|Patch|Delete)|Send-MailMessage/i;
-    if (outward.test(cmd)) block("state/STOP exists, so nothing goes out. Remove it only on Jesse's word.");
+  // Staging a remote command or question only writes a pending item; it runs on the Revenue Partner's computer
+  // after Jesse's code. Allowed as exactly one quoted argument that the local shell can't expand.
+  if (/^\s*node\s+(?:\.[\\/])?tools[\\/]orgo\.mjs\s+(plan|ask)\s+('[^']*'|"[^"$`\\]*")\s*$/.test(cmd)) process.exit(0);
+  const chained = /[;&|`]|\$\(|\n/.test(cmd);
+  const ownTool = !chained && /^\s*node\s+(\.\/|\.\\)?tools[\\/](orgo|switch|check|build_subagents|build_manifest)\.mjs(\s|$)/.test(cmd);
+  if (/\.env/i.test(cmd)) block("keys in .env.local are never read or written from chat. Jesse adds keys himself: node tools/add_secret.mjs NAME (in his own PowerShell window).");
+  if (/approvals|pending/i.test(cmd) && /state/i.test(cmd)) block("approval records are written only from Jesse's own typed code.");
+  if (/\bSTOP\b/.test(cmd) && /\b(rm|del|erase|rmdir|unlink|mv|move|ren|rename|Remove-Item|ri|Move-Item|Rename-Item)\b|>\s*\S*STOP/i.test(cmd)) block("only Jesse lifts STOP: node tools/switch.mjs stop-off, then he types the code from the window.");
+  if (!ownTool && /settings(\.local)?\.json|tools[\\/](hooks|lib)|tools[\\/][\w.-]+\.mjs|[\\/]policies[\\/]|^\s*policies[\\/]/i.test(cmd) && /\b(sed|tee|mv|cp|rm|del|ren|move|copy|Set-Content|Add-Content|Out-File|New-Item|Remove-Item|writeFile|appendFile|truncate|perl|python|node\s+-e|patch|git\s+(checkout|restore|apply|rm))\b|>/i.test(cmd)) {
+    block("the guards, tools and policies change only through Justin's team (git pull) or Jesse himself.");
   }
+  if (/\borgo(\.cmd)?\s+(computers|c)\b|[\\/]orgo[\\/]dist[\\/]cli\.js|npx\s+orgo/i.test(cmd)) block("the Orgo computer is reached only through tools/orgo.mjs (it logs every call and gates changes on Jesse's code).");
+  const netWrite = /\bcurl\b[^\n]*(\s-X\s*(POST|PUT|PATCH|DELETE)|\s(-d|--data\S*|--json|-F|--form\S*|-T|--upload-file)\b)|\bwget\b[^\n]*--(post|method|body)|\b(Invoke-RestMethod|Invoke-WebRequest|irm|iwr)\b[^\n]*-(Method\s+(Post|Put|Patch|Delete)|Body)\b|\bSend-MailMessage\b|\b(node|python3?|py)\s+(-e|-c|--eval)\b[^\n]*(fetch|request|urlopen|https?:)/i;
+  if (netWrite.test(cmd)) block("this workspace doesn't send or change things over the network from the command line. Draft it and put it in queue/needs-jesse.md.");
+  if (stopped && /\b(curl|wget|Invoke-RestMethod|Invoke-WebRequest|irm|iwr|ssh|scp|sftp|ftp|nc|telnet)\b/i.test(cmd)) block("state/STOP exists, so no network commands. Remove it only on Jesse's word.");
   process.exit(0);
 }
 
 if (tool.startsWith("mcp__")) {
-  const name = tool.split("__").slice(2).join("__").toLowerCase() || tool.toLowerCase();
-  const isDraft = /draft/.test(name);
-  if (!isDraft && /(^|[_-])(send|post|publish|reply|forward|delete|trash|remove|archive)([_-]|$)/.test(name)) {
-    block(`${tool} would act outside this PC. This workspace drafts; Jesse sends. Put a draft in queue/drafts/ and an item in queue/needs-jesse.md.`);
+  const name = tool.split("__").slice(2).join("_") || tool;
+  const tokens = name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const READ = new Set(["get", "list", "search", "read", "fetch", "find", "query", "view", "describe", "show", "count", "check",
+    "status", "whoami", "lookup", "look", "preview", "resolve", "inspect", "navigate", "screenshot", "tabs", "download", "export"]);
+  if (tokens.includes("draft") || tokens.includes("drafts")) process.exit(0);
+  if (tokens.includes("scheduled") && tokens.includes("task") || tokens.includes("tasks") && tokens.includes("scheduled")) {
+    if (stopped) block("state/STOP exists, so no routine is registered or run. Remove it only on Jesse's word.");
+    process.exit(0);
   }
-  if (stopped && !isDraft && /(^|[_-])(create|update|schedule|upload|move|share|add|set|write|insert|patch)([_-]|$)/.test(name)) {
-    block(`state/STOP exists, so ${tool} can't change anything outside this PC. Remove STOP only on Jesse's word.`);
+  if (tokens[tokens.length - 1] === "computer" || tokens.includes("computer")) {
+    const safe = ["screenshot", "scroll", "scroll_to", "wait", "zoom", "hover"];
+    if (safe.includes(String(input.action || ""))) process.exit(0);
+    block(`${tool} (${input.action || "an action"}) would click or type in a browser. This workspace reads pages; Jesse does the clicking and posting.`);
   }
+  const verb = tokens.find((t) => READ.has(t) || /^(send|post|publish|reply|forward|delete|trash|remove|archive|create|update|edit|set|add|insert|upload|move|share|invite|respond|execute|run|call|invoke|schedule|write|patch|put|cancel|accept|decline|approve|assign|merge|import|save|apply|form|javascript|type|click|submit)$/.test(t));
+  if (verb && READ.has(verb)) process.exit(0);
+  block(`${tool} isn't a read or a draft, so it could act outside this PC. This workspace drafts; Jesse sends. Put a draft in queue/drafts/ and an item in queue/needs-jesse.md. If this tool is really read-only, tell Justin's team so they can allow it.`);
 }
 process.exit(0);

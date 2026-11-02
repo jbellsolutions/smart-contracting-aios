@@ -34,10 +34,16 @@ try {
   const pre = s.hooks?.PreToolUse || [];
   if (!pre.some((h) => /\bBash\b/.test(h.matcher || ""))) bad(".claude/settings.json", "no PreToolUse hook on Bash");
   if (!pre.some((h) => /mcp__/.test(h.matcher || ""))) bad(".claude/settings.json", "no PreToolUse hook on connector (mcp__) tools");
+  if (!pre.some((h) => /\bWrite\b/.test(h.matcher || "") && /\bEdit\b/.test(h.matcher || ""))) bad(".claude/settings.json", "no PreToolUse hook on Write and Edit");
   const scripts = JSON.stringify(s.hooks || {}).match(/tools\/hooks\/[\w.-]+/g) || [];
   for (const sc of new Set(scripts)) if (!has(sc)) bad(".claude/settings.json", `hook script ${sc} is missing`);
   if (!scripts.some((sc) => has(sc) && rd(sc).includes("STOP"))) bad("tools/hooks", "no hook honours state/STOP");
 } catch (e) { bad(".claude/settings.json", `missing or not valid JSON (${e.message})`); }
+
+if (has(".claude", "settings.local.json")) {
+  const local = rd(".claude", "settings.local.json");
+  if (/disableAllHooks|"hooks"|bypassPermissions/.test(local)) bad(".claude/settings.local.json", "turns hooks off or replaces them; delete it (only Justin's team changes the guards)");
+}
 
 // Charters, work folders, subagents
 const active = [];

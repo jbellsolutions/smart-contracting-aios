@@ -21,11 +21,11 @@ A bare "yes" approves nothing new. One item, one thread, one keyword.
 
 ## Typed codes (the guarded actions)
 
-A change to the Revenue Partner's computer, turning its sending back on, letting the Chief of Staff message it directly, or a change to this file: the tool shows the exact action and a 6-character code, and only Jesse typing `yes <code>` in the chat approves it (`docs/CONVENTIONS.md`, "Jesse's typed approval codes"). The code is tied to that exact action and used once.
+A change to the Revenue Partner's computer, a question to it, turning its sending back on, or lifting `state/STOP` here: the tool shows the exact action and an 8-character code in a window on Jesse's screen (never in the chat), and only Jesse typing exactly `yes <code>` approves it (`docs/CONVENTIONS.md`, "Jesse's typed approval codes"). The code is for that one action, used once. This file itself is changed only by Jesse or by Justin's team; the chat can't edit it.
 
 ## Sending from this PC
 
-This workspace drafts; it doesn't send. A hook blocks every connector tool that sends, posts, replies, forwards or deletes, and while `state/STOP` exists, anything else that changes another system. Jesse sends from his own apps, or the specialist that owns a standing job asks Justin's team to open that one path.
+This workspace drafts; it doesn't send. A hook allows connector tools only to read or draft, so a standing approval alone can't make anything send. Jesse sends from his own apps. For a job that should send by itself (customer texts on rain days, pre-start reminders), Justin's team opens that one send path, and Jesse's standing approval covers that exact message.
 
 ## Standing approvals
 

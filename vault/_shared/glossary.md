@@ -11,7 +11,6 @@ Names and words, so dictation (Wispr Flow) and transcripts land right. Add to it
 | site eight, site 8 | Site8 Pro: the crew's site safety app (daily pre-starts) |
 | Augo, Orgo | Orgo: where the Revenue Partner's computer lives |
 | Hermes, Permies | Hermes: the agent the Revenue Partner runs on |
-| the old man, Poppy | Mike |
 | clawed, cloud code, quad code | Claude, Claude Code |
 | whisper flow | Wispr Flow |
 | pre-starts | the crew's daily safety check in Site8 Pro |

@@ -13,7 +13,7 @@ Turn the crew's site photos and videos into posts and reels for Instagram and Fa
 |---|---|
 | **Reads** | Job photos and videos (from Jobs and Quotes, Jesse's site app, or a shared folder: which one is decided at install); `vault/_shared/voice.md`; `policies/NZ-RULES.md` |
 | **Only writer of** | `queue/drafts/studio/` (captions, picked photos, cut reels); `vault/_shared/content-library.md` |
-| **Produces** | Post and reel drafts: the best before/during/after shots, a 9:16 reel cut with captions where the tools allow, a caption in Jesse's voice; profile tidy-up options (new Instagram name ideas, bio, highlights) |
+| **Produces** | Post and reel drafts: the best before/during/after shots, a 9:16 reel cut with captions where the tools allow, a caption in Jesse's voice; profile tidy-up options (bio, highlights; Jesse keeps the name "Smart Contracting" (29 Oct), so new name ideas only if he asks) |
 | **Tools and scopes** | Local video tools on Jesse's PC (to check at install); Meta Business Suite, where Jesse schedules himself (free, no setup). Agent posting later: a private Meta app owned by the business (standard access, no app review for people with a role on the app; Instagram professional account linked to the Page) or GoHighLevel's Social Planner |
 | **Never** | Posts without Jesse's yes for that post, until a standing approval covers that post type; shows house numbers, number plates or faces without the customer's OK; claims results or reviews that aren't real |
 | **Hands off to** | SOPs (the crew photo SOP); Chief of Staff (drafts into Needs-Jesse) |

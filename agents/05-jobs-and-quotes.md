@@ -36,9 +36,9 @@ Asks 52 (read jobs and quotes; the "JMS" is Ascora), 53 (failed quotes back as r
 - "Some numbers there which I feel like AI could use, but it definitely would need… the final sign-off."
 
 ## New from Jesse and Mike's chat (Oct 30)
-- **Quoting by quantities** (ask 121, with 79): Mike gives the quantities ("thirty metres… three gullies and one stack… seventy metres of stormwater"); the draft prices them from his spreadsheet (received 29 Oct) and marks any missing rate. Keeping material prices current: a materials list with the date each price was checked, from supplier price lists Jesse or Mike provide; the agent never assumes a price.
+- **Quoting by quantities** (ask 121, with 79): Mike gives the quantities ("thirty metres… three gullies and one stack… seventy metres of stormwater"); the draft prices them from his spreadsheet (received 29 Oct) and marks any missing rate. Keeping material prices current: a materials list with the date each price was checked, from supplier price lists Jesse or Mike provide, flagging where a cheaper supplier's price for the same material shows up (Mike's "finding the cheapest materials we use"), for Mike's call; the agent never assumes a price.
 - **Rain days** (ask 116): when a quote is accepted, its start and days; on a rain day, a proposed new schedule and "what day I need to bring these people". A plan for Jesse's yes; Ascora is changed by a person.
-- **Customer texts when a job moves** (ask 117): a text per affected customer, the ones who need a call flagged. Drafts until a texting channel exists (Phone, reserved) and Jesse gives a standing approval for that exact message; the evening brief lists everything sent.
+- **Customer texts when a job moves** (ask 117): a text per affected customer, the ones who need a call flagged. Drafts only. The guard blocks every connector send, so sending these by themselves needs a send path that Justin's team opens (a texting channel, Phone, reserved) plus Jesse's standing approval for that exact message. The evening brief lists everything sent.
 
 ## Profile
 

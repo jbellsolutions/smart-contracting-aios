@@ -69,14 +69,14 @@ Before every push: `cb verify` with the blocked terms, and confirm nothing under
 
 From Justin's instruction of 1 Nov ("drop it in Claude Code, and it self-installs and builds itself… one chat that's his master chat"), Jesse and Mike's recorded office chat (30 Oct NZ), Jesse's send-fix PDF and Slack messages (29–31 Oct). Ledger rows 106–128; rows 79, 91 and 92 updated with Jesse's answers.
 
-**Built to Justin's AIOS standard**, adapted for Windows: the hooks and tools are Node scripts, because Node is already on Jesse's PC and Python may not be. `cb verify` now runs the AIOS checks; the workspace has its own copy of them in `tools/check.mjs`, so it can check itself after each build.
+**Built to Justin's AIOS standard**, adapted for Windows: the hooks and tools are Node scripts, because Node is already a prerequisite (the Xero connection needs it) and Python may not be on Jesse's PC. `cb verify` now runs the AIOS checks; the workspace has its own copy of them in `tools/check.mjs`, so it can check itself after each build.
 
 | Piece | What it does | Asks |
 |---|---|---|
 | `skills/install`, `START-HERE.md` | One paste clones it; the chat installs and proves each step (folder, tools, STOP, both guards firing, module, private files, Obsidian, Slack, the Orgo link, subagents, self-check) and writes an install log | 125 |
 | `skills/build` | Builds a new specialist, skill, routine or project spec after Jesse approves the scope; self-checks; shows it working in test mode; commits locally | 126 |
 | `skills/roadmap`, `vault/_shared/roadmap.md` | Ranks what to build next (safety first, then more work in, then time back), as milestones and dependencies | 128 |
-| `skills/orgo-link`, `tools/orgo.mjs` | Status, logs and `hold` on the Revenue Partner's Orgo computer; questions to it after Jesse's go-ahead; any change there only after Jesse types the code for that exact command | 127, 49 |
+| `skills/orgo-link`, `tools/orgo.mjs` | Status, logs and `hold` on the Revenue Partner's Orgo computer; each question, and any change there, only after Jesse types the code for that exact command | 127, 49 |
 | `projects/revenue-partner-sends/SPEC.md` | Jesse's fix list as requirements and checks: one sender, a real stop file, the right clock, latest draft only, each email once, the gateway kept up, then the model. Sends stay off until it passes | 106–111 |
 | `.claude/settings.json`, `tools/hooks/` | Guards: connector sends blocked (this workspace drafts), outward actions blocked while `state/STOP` exists, keys kept out of chat, Jesse's typed `yes <code>` recorded | 107, rules |
 | `agents/10-people.md`, `skills/staff-check-in`, `skills/hiring`, routine `staff-check-ins` (paused) | Weekly check-ins prepared and written up; hiring drafts and agreements from their own templates | 123, 124 |
@@ -89,3 +89,20 @@ From Justin's instruction of 1 Nov ("drop it in Claude Code, and it self-install
 **Not proven yet:** anything on Jesse's PC (Windows hooks firing, the trust prompt, `node` on the app's PATH, `add_secret` in PowerShell), and anything against the real Revenue Partner computer (Hermes's location and user, `hermes cron list`, `--source tool`). The install proves the first set; the first `orgo-link status` proves the second. A read-only test against a live Orgo box from Justin's Mac was refused by the session's safety check and not worked around.
 
 **Open:** the hard stop Justin asked for on 30 Oct is unconfirmed, so treat the Revenue Partner as able to send until `orgo-link status` shows otherwise.
+
+### Independent review of v0.2 (fresh Opus reviewer, given the sources and the package, not the build summary)
+
+| Finding | Severity | Fixed how |
+|---|---|---|
+| `ask` started an AI session on the Revenue Partner's computer, gated once and then forever; ignored STOP; no profile | High | Each question needs its own code; refused while STOP exists; sent with "answer only"; at most 4 turns; `ORGO_PROFILE` supported |
+| The model could approve its own changes: the code was printed in the chat and the guard missed some ways of writing approval files; "do NOT approve <code>" counted | High | Codes are random, shown only in a window on Jesse's screen, stored only as a slow hash; only a message that is exactly `yes <code>` counts, and only for a staged item; `apply` takes the one approved item |
+| Guard gaps: wildcard `.env` reads, `rm state/STOP`, `sed` on the guards, Write/Edit on tools and local settings, camelCase and dispatcher connector tools, browser typing, network writes by other commands | High | Connector tools allowlisted to reads and drafts; Write/Edit blocked on `.claude/`, `tools/`, `policies/` and approval records; Bash rules widened; `check.mjs` fails on a local settings file that turns hooks off; docs now say what the guards don't cover. 44 sample calls pass, including every bypass the reviewer found |
+| A build or `/calibrate` could weaken the guarantees | Medium | Both now send rule changes (charter Never lines, the install, `orgo-link` and `build` skills, anything under `.claude/`, `tools/`, `policies/`) to `queue/needs-jesse.md`; the hooks block those files anyway |
+| The send spec's checks 4–5 couldn't run with the stop file on | Medium | Test mode: sends only to Jesse's own address while the stop file exists |
+| `status` checked Hermes jobs without a profile | Medium | Lists the profiles and checks jobs in each |
+| Cold Windows install: Git on PATH before a restart; `npm.ps1` blocked in PowerShell | Medium | Restart the app after installing Git; `npm.cmd` in PowerShell. The install now also tests the approval window and a refused Slack send |
+| Contradictions: who edits APPROVALS.md; how the local STOP is lifted; `hold` changing the computer without a code; the Revenue Partner's owner row and clock line; standing approvals can't send | Medium | APPROVALS.md is changed only by Jesse or Justin's team; `tools/switch.mjs stop-off` with Jesse's code; `hold` named as the one exception (it only adds the stop file, no recursive ownership change); charter rows fixed; asks 117 and 118 say their sending needs a send path opened by Justin's team |
+| Jesse's "top heavy and system heavy" remark, and a family nickname, in the public repo | Low | Removed (nickname kept privately) |
+| Cheapest materials; the Instagram name; NZ time only; the deemed-consent wording; ledger rows 110–111 numbering | Low | Fixed |
+
+Where the Orgo and Hermes command lines come from: `orgo computers bash <name> [--workspace] --timeout -c` was read from the Orgo CLI's own help (version 2.3.0) on Justin's Mac; `hermes [-p profile] chat -q … -Q --source tool --max-turns` and `hermes cron list` come from Justin's own Orgo tooling, proven on his boxes. None of it is proven on Jesse's computer yet.

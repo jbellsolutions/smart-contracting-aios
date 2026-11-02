@@ -5,7 +5,7 @@ description: Keeps the map of every tool and subscription Smart Contracting uses
 
 # Systems map
 
-Jesse, Oct 28: "We're quite small… quite top heavy and system heavy." "We just have to start just turning shit off."
+Jesse, Oct 28: simplify, and turn off what isn't earning its keep.
 
 ## Inputs
 - `vault/_shared/tool-map.md`

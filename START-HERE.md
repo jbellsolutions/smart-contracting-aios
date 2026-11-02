@@ -5,7 +5,7 @@ This is Smart Contracting's AI operating system: one Claude Code chat, the Chief
 ## 1. Drop it in (one paste)
 On Jesse's PC, open the Claude app → Code, start a new session in your home folder, and paste:
 
-> Clone https://github.com/jbellsolutions/smart-contracting-aios into my home folder as Smart-Contracting-AIOS (not Documents or OneDrive). If git isn't installed, install it with winget first. Then tell me how to open a new Claude Code session in that folder.
+> Clone https://github.com/jbellsolutions/smart-contracting-aios into my home folder as Smart-Contracting-AIOS (not Documents or OneDrive). If git isn't installed, install it with winget and tell me to restart the Claude app and paste this again. Then tell me how to open a new Claude Code session in that folder.
 
 Then open a new session in `Smart-Contracting-AIOS`, say yes if the app asks whether you trust the folder, and say **install**.
 
@@ -17,7 +17,7 @@ Then open a new session in `Smart-Contracting-AIOS`, say yes if the app asks whe
 - sign in to Slack in the Claude app's connectors;
 - type two keys into his own PowerShell window (`node tools/add_secret.mjs ORGO_API_KEY` and `ORGO_COMPUTER`). Never into the chat.
 
-**Installed means** the install log shows every step passed, including the two guard tests (a send refused while `state/STOP` exists, and a fake key refused), and the Orgo link reads the Revenue Partner's computer.
+**Installed means** the install log shows every step passed, including the guard tests (a send refused while `state/STOP` exists, a fake key refused, an approval code working from its window, and a Slack send refused), and the Orgo link reads the Revenue Partner's computer.
 
 ## 3. Then it builds itself
 - **"Set me up"**: your details, your tools, the open questions, the first morning brief (`skills/getting-started`).
