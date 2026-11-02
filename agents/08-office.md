@@ -31,6 +31,10 @@ Asks 85 (shared calendar and reminders), 86 (email: see what's going on).
 - Whether a viewer of a shared calendar gets reminders for the other person's events is UNCONFIRMED; meetings that invite both avoid the question.
 - Which reminder lead time they want (30 minutes? an hour? the day before for site visits?) is theirs to choose.
 
+## New (Oct 30)
+- Ask 113: the info inbox: quote requests found and referred to Mike, tenders kept track of (Mike decides which to do).
+- Ask 122 (with 85): calendar by voice for both of them ("put this in the calendar… when's a good time?"); reminders at 30 minutes, an hour, and the day before a site visit (Jesse, 29 Oct). Both on Outlook.
+
 ## Profile
 
 ```

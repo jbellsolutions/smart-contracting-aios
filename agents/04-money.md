@@ -38,6 +38,9 @@ Skill: `skills/money-snapshot/SKILL.md`. Asks 76 (invoicing off Mike), 77 (real-
 - Mike owns the books. The agent prepares; Mike decides.
 - "It definitely would need… the final sign-off. You know, just so things weren't getting missed."
 
+## New from Mike's list (Oct 30)
+- Asks 112: the invoice flow from accounts receivable into Ascora and on to Xero, Xero reconciled, and "any errors between Ascora and Xero, and invoicing". M1: a read-only mismatch list (invoices in Ascora not in Xero, and the reverse). M2: invoicing prep for Mike. The stuck-invoice causes (job coding, gmail.com senders) are fixed in Ascora itself: `projects/ascora-simplify/SPEC.md`, ask 120.
+
 ## Profile
 
 ```

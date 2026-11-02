@@ -30,6 +30,9 @@ Skill: `skills/follow-ups-report/SKILL.md`. Asks 54 (LeadConnector, look-only fi
 ## Platform limits, named
 - Whether the attribution field is available in contact search (not only per contact) is UNCONFIRMED; the first run checks.
 
+## New (Oct 30)
+- Ask 114: quote follow-ups, and asking for a review once a job is paid. Review-request drafts for Jesse's yes; nothing sends from here.
+
 ## Profile
 
 ```

@@ -99,9 +99,9 @@ if (git.status === 0) {
   const keyShapes = /\bsk-[A-Za-z0-9_-]{20,}|\b(?:sk|rk)_live_[A-Za-z0-9]{10,}|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bgh[pousr]_[A-Za-z0-9]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;
   for (const f of git.stdout.split("\0").filter(Boolean)) {
     if (/\.(png|jpe?g|pdf|zip|gif)$/i.test(f) || !has(f)) continue;
-    const t = rd(f);
+    const t = rd(f).replaceAll("sk-test-aaaaaaaaaaaaaaaaaaaaaaaa", ""); // the install's deliberately fake key
     if (keyShapes.test(t) && !f.startsWith("tools/hooks/") && f !== "tools/orgo.mjs") bad(f, "holds something shaped like a key");
-    if (/<!-- (WRITE|FILL) -->/.test(t) && !f.startsWith("docs/_templates/")) bad(f, "has an unfilled <!-- WRITE --> or <!-- FILL --> marker");
+    if (/<!-- (WRITE|FILL) -->/.test(t) && !f.startsWith("docs/_templates/") && f !== "tools/check.mjs") bad(f, "has an unfilled <!-- WRITE --> or <!-- FILL --> marker");
   }
 } else warn.push("git not found: skipped the .gitignore and key checks");
 

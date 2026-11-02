@@ -22,29 +22,37 @@
   },
   "agents": [
     {
-      "name": "Chief of Staff",
+      "name": "Chief of Staff (Jesse can rename it)",
       "charter": "agents/01-chief-of-staff.md",
       "account": "business",
       "milestone": "M0",
       "routines": [
+        "routines/evening-brief.prompt",
         "routines/morning-brief.prompt"
       ],
       "skills": [
-        "dispatch",
-        "morning-brief",
         "ask-ledger",
         "brain-dump",
-        "systems-map",
-        "getting-started"
+        "build",
+        "dispatch",
+        "evening-brief",
+        "getting-started",
+        "install",
+        "morning-brief",
+        "orgo-link",
+        "roadmap",
+        "systems-map"
       ]
     },
     {
       "name": "Revenue Partner",
       "charter": "agents/02-revenue-partner.md",
       "account": "revenue-partner",
-      "milestone": "M0",
+      "milestone": "M0 (upgrade)",
       "routines": [],
-      "skills": []
+      "skills": [
+        "orgo-link"
+      ]
     },
     {
       "name": "Radar",
@@ -52,13 +60,15 @@
       "account": "business",
       "milestone": "M1",
       "routines": [],
-      "skills": []
+      "skills": [
+        "getting-started"
+      ]
     },
     {
       "name": "Money",
       "charter": "agents/04-money.md",
       "account": "business",
-      "milestone": "M1",
+      "milestone": "M1 (read-only)",
       "routines": [
         "routines/money-snapshot.prompt"
       ],
@@ -67,7 +77,7 @@
       ]
     },
     {
-      "name": "Jobs and Quotes",
+      "name": "Jobs",
       "charter": "agents/05-jobs-and-quotes.md",
       "account": "business",
       "milestone": "M2",
@@ -90,7 +100,7 @@
       "name": "Studio",
       "charter": "agents/07-studio.md",
       "account": "business",
-      "milestone": "M1",
+      "milestone": "M1 (drafts) / M2 (posting on Jesse's yes)",
       "routines": [],
       "skills": []
     },
@@ -113,31 +123,20 @@
       ]
     },
     {
-      "name": "Fleet",
-      "charter": "agents/90-fleet.md",
+      "name": "People",
+      "charter": "agents/10-people.md",
       "account": "business",
-      "milestone": "M3",
-      "routines": [],
-      "skills": []
-    },
-    {
-      "name": "Phone",
-      "charter": "agents/91-phone.md",
-      "account": "business",
-      "milestone": "M3",
-      "routines": [],
-      "skills": []
+      "milestone": "M2",
+      "routines": [
+        "routines/staff-check-ins.prompt"
+      ],
+      "skills": [
+        "hiring",
+        "staff-check-in"
+      ]
     }
   ],
   "skills": [
-    {
-      "name": "dispatch",
-      "path": "skills/dispatch"
-    },
-    {
-      "name": "morning-brief",
-      "path": "skills/morning-brief"
-    },
     {
       "name": "ask-ledger",
       "path": "skills/ask-ledger"
@@ -147,27 +146,74 @@
       "path": "skills/brain-dump"
     },
     {
-      "name": "systems-map",
-      "path": "skills/systems-map"
+      "name": "build",
+      "path": "skills/build"
     },
     {
-      "name": "sop-writer",
-      "path": "skills/sop-writer"
+      "name": "dispatch",
+      "path": "skills/dispatch"
+    },
+    {
+      "name": "evening-brief",
+      "path": "skills/evening-brief"
+    },
+    {
+      "name": "follow-ups-report",
+      "path": "skills/follow-ups-report"
     },
     {
       "name": "getting-started",
       "path": "skills/getting-started"
     },
     {
+      "name": "hiring",
+      "path": "skills/hiring"
+    },
+    {
+      "name": "install",
+      "path": "skills/install"
+    },
+    {
       "name": "money-snapshot",
       "path": "skills/money-snapshot"
     },
     {
-      "name": "follow-ups-report",
-      "path": "skills/follow-ups-report"
+      "name": "morning-brief",
+      "path": "skills/morning-brief"
+    },
+    {
+      "name": "orgo-link",
+      "path": "skills/orgo-link"
+    },
+    {
+      "name": "roadmap",
+      "path": "skills/roadmap"
+    },
+    {
+      "name": "sop-writer",
+      "path": "skills/sop-writer"
+    },
+    {
+      "name": "staff-check-in",
+      "path": "skills/staff-check-in"
+    },
+    {
+      "name": "systems-map",
+      "path": "skills/systems-map"
     }
   ],
   "projects": [
-    "projects/ascora-simplify/SPEC.md"
+    "projects/ascora-simplify/SPEC.md",
+    "projects/revenue-partner-sends/SPEC.md"
+  ],
+  "reserved_agents": [
+    {
+      "name": "Fleet",
+      "charter": "agents/90-fleet.md"
+    },
+    {
+      "name": "Phone",
+      "charter": "agents/91-phone.md"
+    }
   ]
 }

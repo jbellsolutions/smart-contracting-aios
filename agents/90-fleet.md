@@ -15,3 +15,5 @@ Read the tracker (export or API, whichever it has), put service-due dates into t
 
 ## What it owns
 Ask 87.
+
+New (Oct 30, ask 119): their tracker is Cartrack. It "sends us a schedule. You need to buy these… somebody does it manually" (RUCs and regos *(inferred)*). When this role is built: due dates into the morning brief, bought by a person.

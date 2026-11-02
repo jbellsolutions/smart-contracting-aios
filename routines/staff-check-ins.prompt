@@ -1,0 +1,19 @@
+NAME: staff-check-ins
+OWNER: people
+KIND: active
+WHERE: jesse-pc
+WHEN: Every Monday at 6:53 AM (NZ time), before the crew heads out
+CRON: 53 6 * * 1
+CRON_TZ: Pacific/Auckland (local time on Jesse's PC)
+SKILLS: staff-check-in
+MILESTONE: M2
+STATUS: Created paused. Switched on only after Jesse says yes.
+---
+Switch check: read state/routines-on.md. If "staff-check-ins" isn't listed as "on" or "test", log SKIPPED_OFF and stop.
+Test mode: if listed as "test", mark the list TEST.
+Stop check: if state/STOP exists, still prepare the list (it goes only to Jesse, in this chat), and log that STOP was on.
+Isolation guard: work only in this workspace. If context/owner.md is missing, log NO_CLIENT_SOURCE and stop.
+Lean run: read only the crew list and each due person's own note. If nobody is due, log NO_CHANGE and stop.
+Run log: append to runs/<YYYY-MM>/<date>-people-staff-check-ins.md: EXECUTED + one-line result (how many due, no names), or FAILED + reason, and Sources read.
+
+Run skills/staff-check-in/SKILL.md, the "Before" part. Give the week's check-in list to Jesse only, in the Chief of Staff chat, and add one line to today's vault/daily note. Never message anyone else.

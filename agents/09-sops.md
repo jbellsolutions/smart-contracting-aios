@@ -31,6 +31,10 @@ Asks 89 (SOPs office to site, for accountability), 90 (getting unstuck in Ascora
 - "So there's an accountability when I come to somebody and I say, hey, you haven't done this… thing that you're supposed to be doing."
 - First SOPs to write (inferred from the Oct 28 call): supplier invoices into Xero; invoicing a finished job; the crew's before/during/after photos; vehicle checks.
 
+## New (Oct 30)
+- Ask 115: QA and SOPs per job type: the handover from quote to supervisor to ops to site, the crew's daily Ascora steps, an end-of-job checklist, QA photos into Ascora, invoicing with the QA attached, and commissioning forms followed up and sent to the builder. One SOP per job type, written with Jesse and Mike ("we probably need to sit down and go through").
+- Ask 118: **Pre-start check.** Check each morning that the crew have done their Site8 Pro pre-starts; if not by the time Jesse sets, a reminder text ("you haven't done this"). M2: needs Site8 Pro read access and a texting channel; until then the brief lists who hasn't done it, if Site8 Pro can be read. The time and who gets the text: `OPEN_QUESTIONS.md` A19.
+
 ## Profile
 
 ```

@@ -1,0 +1,19 @@
+NAME: evening-brief
+OWNER: chief-of-staff
+KIND: active
+WHERE: jesse-pc
+WHEN: Every weekday at 5:47 PM (NZ time)
+CRON: 47 17 * * 1-5
+CRON_TZ: Pacific/Auckland (local time on Jesse's PC)
+SKILLS: evening-brief
+MILESTONE: M0
+STATUS: Created paused. Switched on only after Jesse says yes.
+---
+Switch check: read state/routines-on.md. If "evening-brief" isn't listed as "on" or "test", log SKIPPED_OFF and stop.
+Test mode: if listed as "test", mark the brief TEST.
+Stop check: if state/STOP exists, still write the brief to the daily note and show it in this chat (it goes to Jesse only), and log that STOP was on.
+Isolation guard: work only in this workspace. If context/owner.md is missing, log NO_CLIENT_SOURCE and stop.
+Lean run: read only the inputs the evening-brief skill names. This report always goes to Jesse, so it never stops at NO_CHANGE.
+Run log: append to runs/<YYYY-MM>/<date>-chief-of-staff-evening-brief.md: EXECUTED + one-line result, or FAILED + reason, and Sources read.
+
+Run skills/evening-brief/SKILL.md. Append the brief to today's vault/daily note and show it in the Chief of Staff chat. Never message anyone else.

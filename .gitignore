@@ -25,3 +25,8 @@ client-context/*.md
 # Installed at install time, never committed
 tools/.orgo/
 .env.local.tmp
+
+# Work-folder outputs and the crew's own templates stay on Jesse's PC
+*/output/
+people/templates/*
+!people/templates/.gitkeep
