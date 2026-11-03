@@ -11,15 +11,22 @@
 //   node tools/orgo.mjs ask "question"         stage one question to the Revenue Partner (needs Jesse's code each time)
 //   node tools/orgo.mjs plan "command"         stage one command that changes the computer (needs Jesse's code)
 //   node tools/orgo.mjs sends-on               stage removing the stop file (needs Jesse's code)
+//   node tools/orgo.mjs install-sender         stage copying the one sender (projects/revenue-partner-sends/sender/) to
+//                                              ~/PartnerDesk/sender/ there (needs Jesse's code). No sender.json, no timer,
+//                                              the stop file stays
+//   node tools/orgo.mjs sender-check           read-only: the sender's selfcheck and status, every timer that mentions
+//                                              sending, and any other code that calls the mail API (file paths only)
 //   node tools/orgo.mjs apply                  run the one staged item Jesse has approved, once
 //
 // Approvals: tools/lib/approval.mjs shows the code in a window on Jesse's screen, never in the chat, and only
 // Jesse typing exactly "yes <code>" (or yes in node tools/approve.mjs, in his own window) approves it. Keys come from .env.local (ORGO_API_KEY, ORGO_COMPUTER, and
 // ORGO_WORKSPACE / ORGO_PROFILE when needed) and are never printed. Every call is logged in runs/.
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 import { stage, take } from "./lib/approval.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -97,6 +104,8 @@ as_u() { if [ "$(id -un)" = root ] && [ -n "$U" ] && [ "$U" != root ]; then runu
 STOPFILE="$HH/PartnerDesk/state/SEND-STOP"
 PROFILES="default"; [ -d "$HH/.hermes/profiles" ] && PROFILES="default $(ls -1 "$HH/.hermes/profiles" 2>/dev/null | tr '\n' ' ')"
 pflag() { [ "$1" = default ] && return; echo "-p $1"; }
+SPY=python3; [ -n "$SENDER_PY" ] && SPY="$SENDER_PY"
+sender() { as_u env PARTNERDESK_HOME="$HH/PartnerDesk" "$SPY" "$HH/PartnerDesk/sender/sender.py" "$@"; }
 `;
 
 const TIMERS = String.raw`
@@ -125,9 +134,83 @@ echo "profiles: $PROFILES"
 [ -n "$H" ] && as_u timeout 30 "$H" profile list 2>&1 | head -15
 echo "## gateway"
 ps -eo pid,user,etime,args 2>/dev/null | grep -E '[h]ermes.*gateway' | cut -c1-200 || echo "none running"
+echo "## one sender"
+[ -n "$HH" ] && [ -f "$HH/PartnerDesk/sender/sender.py" ] && echo "installed: $HH/PartnerDesk/sender/sender.py" || echo "not installed: $HH/PartnerDesk/sender/sender.py"
+SL="$HH/PartnerDesk/send-log.jsonl"
+if [ -n "$HH" ] && [ -f "$SL" ]; then echo "send-log, last 3:"; tail -n 3 "$SL" | cut -c1-300; else echo "send-log: none yet"; fi
 ` + TIMERS;
 
+// Read-only: the one sender's own checks, every scheduler entry that mentions sending, and any other code that
+// calls the mail API. Prints file paths only, never file contents.
+const SENDER_CHECK = PRELUDE + String.raw`
+[ -z "$HH" ] && { echo "UNKNOWN: no Hermes home found"; exit 3; }
+D="$HH/PartnerDesk/sender"
+P='send|msgraph|graph\.microsoft'
+cd / || true
+if [ -f "$D/sender.py" ]; then
+  echo "## sender selfcheck (temporary folder, fake mail; touches nothing real)"; sender selfcheck 2>&1 | tail -20
+  echo "## sender status"; sender status 2>&1 | tail -60
+else echo "not installed: $D/sender.py"; fi
+echo "## the agent's mail code"
+find "$HH" -xdev -maxdepth 7 -name msgraph_mail.py -not -path "*/node_modules/*" 2>/dev/null | head -5
+[ -n "$H" ] && echo "hermes runs under: $(head -1 "$(readlink -f "$H")" 2>/dev/null | cut -c1-160)"
+echo "## scheduler entries that mention sending (the sender's own cron line should be the only one)"
+for u in root $(ls /home 2>/dev/null); do crontab -l -u "$u" 2>/dev/null | grep -v -E '^[[:space:]]*#' | grep -i -E "$P" | sed "s|^|crontab $u: |"; done
+grep -i -E "$P" /etc/crontab /etc/cron.d/* 2>/dev/null | grep -v -E ':[[:space:]]*#' | cut -c1-200 | sed 's|^|system cron: |'
+if command -v atq >/dev/null 2>&1; then atq | while read -r n rest; do at -c "$n" 2>/dev/null | grep -q -i -E "$P" && echo "at job $n: $rest"; done; fi
+for svc in $(systemctl list-timers --all --no-legend 2>/dev/null | awk '{print $NF}'); do systemctl cat "$svc" 2>/dev/null | grep -q -i -E "$P" && echo "systemd timer runs $svc"; done
+if [ -n "$U" ] && [ "$U" != root ]; then UID_U=$(id -u "$U"); for svc in $(as_u env XDG_RUNTIME_DIR="/run/user/$UID_U" systemctl --user list-timers --all --no-legend 2>/dev/null | awk '{print $NF}'); do as_u env XDG_RUNTIME_DIR="/run/user/$UID_U" systemctl --user cat "$svc" 2>/dev/null | grep -q -i -E "$P" && echo "user systemd timer runs $svc"; done; fi
+if [ -n "$H" ]; then for p in $PROFILES; do as_u timeout 60 "$H" $(pflag "$p") cron list 2>&1 | grep -i -E -B3 -A3 "$P" | sed "s|^|hermes job ($p): |" | head -40; done; else echo "UNKNOWN: no hermes"; fi
+ps -eo pid,user,etime,args 2>/dev/null | grep -E -i '[s]leep [0-9]|[s]end|[s]mtp|graph\.microsoft' | grep -v -E 'ps -eo|base64|sender-check' | cut -c1-200 | sed 's|^|process: |' | head -20
+echo "## code that calls the mail API outside $D (file paths only; msgraph_mail.py itself shows because it defines send_mail)"
+timeout 120 grep -r -l -I -E 'sendMail|/send\b|send_mail\(' "$HH" /tmp /usr/local/bin --exclude-dir={node_modules,.git,.cache,.npm,site-packages,__pycache__,logs,sessions,.venv,venv} 2>/dev/null | grep -v "^$D/" | head -60
+echo "## end"
+`;
+
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
+
+// The one sender's files, read from this repo. What Jesse approves names each file's hash; apply re-reads them and
+// refuses if anything changed in between.
+const SENDER_DIR = path.join(ROOT, "projects", "revenue-partner-sends", "sender");
+const SENDER_FILES = ["sender.py", "graph_adapter.py", "test_sender.py", "README.md", "sender.example.json"];
+function senderFiles() {
+  return SENDER_FILES.map((name) => {
+    const p = path.join(SENDER_DIR, name);
+    if (!fs.existsSync(p)) die(`Missing ${path.relative(ROOT, p)}. Run git pull, then stage it again.`, 4);
+    const buf = fs.readFileSync(p);
+    return { name, buf, sha: createHash("sha256").update(buf).digest("hex") };
+  });
+}
+const senderText = (files) => `Into ~/PartnerDesk/sender/ on the Revenue Partner's computer, owned by the Hermes user:\n${files.map((f) => `  ${f.name} (sha256 ${f.sha.slice(0, 16)})`).join("\n")}\nIt also creates ~/PartnerDesk/state. It doesn't create sender.json, add or change any timer, or remove the stop file. It sends nothing.`;
+
+// The remote scripts for install-sender: each file goes up gzipped and in base64 pieces small enough for one
+// command line (Windows caps a command line at 32,767 characters), into a holding folder. The last script checks
+// every file's hash and only then moves them all into place, so a broken upload installs nothing.
+export function installSenderScripts(files, piece = 16000) {
+  const scripts = [];
+  const I = `"$HH/PartnerDesk/sender/.incoming"`;
+  const guard = `[ -z "$HH" ] && { echo "UNKNOWN: no Hermes home found; nothing installed"; exit 3; }\n`;
+  scripts.push(guard + `echo "## already in $HH/PartnerDesk"; ls -1A "$HH/PartnerDesk" 2>/dev/null | head -40\nmkdir -p ${I} && rm -f ${I}/*.b64 && echo "upload started"\n`);
+  for (const f of files) {
+    const data = gzipSync(f.buf, { level: 9 }).toString("base64");
+    for (let i = 0; i < data.length; i += piece) scripts.push(guard + `printf '%s' '${data.slice(i, i + piece)}' >> ${I}/${f.name}.b64 || exit 4\n`);
+  }
+  const lines = [guard.trimEnd(), `D="$HH/PartnerDesk/sender"`, `OK=1`];
+  for (const f of files) {
+    lines.push(`base64 -d ${I}/${f.name}.b64 2>/dev/null | gzip -dc > ${I}/${f.name} 2>/dev/null; [ "$(sha256sum ${I}/${f.name} | cut -d' ' -f1)" = "${f.sha}" ] || { echo "FAILED: ${f.name} didn't arrive intact"; OK=0; }`);
+  }
+  lines.push(`[ "$OK" = 1 ] || { rm -f ${I}/*; rmdir ${I} 2>/dev/null; echo "Nothing installed."; exit 4; }`);
+  lines.push(`mkdir -p "$HH/PartnerDesk/state"`);
+  for (const f of files) lines.push(`mv -f ${I}/${f.name} "$D/${f.name}" && chmod ${f.name === "sender.py" ? 755 : 644} "$D/${f.name}"`);
+  lines.push(`rm -f ${I}/*.b64; rmdir ${I} 2>/dev/null`);
+  // Only the folders this touches, and only when the command runs as root: never a recursive ownership change.
+  lines.push(`if [ "$(id -un)" = root ] && [ -n "$U" ] && [ "$U" != root ]; then [ "$(stat -c %U "$HH/PartnerDesk")" = root ] && chown "$U" "$HH/PartnerDesk"; chown "$U" "$HH/PartnerDesk/state" "$D" ${files.map((f) => `"$D/${f.name}"`).join(" ")}; fi`);
+  lines.push(`echo "## installed"; for f in ${files.map((f) => f.name).join(" ")}; do echo "$f $(sha256sum "$D/$f" | cut -c1-16) $(stat -c %U "$D/$f")"; done`);
+  lines.push(`[ -e "$HH/PartnerDesk/sender.json" ] && echo "sender.json: present (left as it was)" || echo "sender.json: not yet (next step: fill it in)"`);
+  lines.push(`[ -e "$STOPFILE" ] && echo "stop file: present" || echo "stop file: ABSENT (run node tools/orgo.mjs hold)"`);
+  scripts.push(lines.join("\n") + "\n");
+  return scripts;
+}
 
 function onBox(vals, script, timeoutSec = 120) {
   const wrapped = `echo ${b64(script)} | base64 -d | bash`;
@@ -215,6 +298,13 @@ function main() {
     done(r);
   }
 
+  if (sub === "sender-check") {
+    const r = onBox(vals, SENDER_CHECK, 300);
+    show(r);
+    logRun("sender-check", r.code === 0 ? "EXECUTED" : "FAILED", r.code === 0 ? "ran the sender's selfcheck and status, listed send timers and mail-API callers" : "couldn't run the sender check");
+    done(r);
+  }
+
   if (sub === "hold") {
     // Protective: never needs an approval and is never blocked by state/STOP. It only adds the stop file.
     const script = PRELUDE + `[ -n "$HH" ] && { mkdir -p "$HH/PartnerDesk/state" && touch "$STOPFILE" && chown "$U" "$HH/PartnerDesk/state" "$STOPFILE" 2>/dev/null; }\ntouch /tmp/SEND-HOLD\necho "hold set"\n` + TIMERS;
@@ -240,13 +330,19 @@ function main() {
     return;
   }
 
+  if (sub === "install-sender") {
+    // Installing files sends nothing, so like plan it can be staged and applied while state/STOP exists.
+    stage(ROOT, "orgo-install-sender", senderText(senderFiles()), "Install the one sender on the Revenue Partner's computer", "This copies the one sender's files to the Revenue Partner's computer. It runs nothing and turns nothing on. It will copy:");
+    return;
+  }
+
   if (sub === "sends-on") {
     stage(ROOT, "orgo-sends-on", "remove the stop file on the Revenue Partner's computer", "Turn the Revenue Partner's sending back on", "This turns the Revenue Partner's sending back on. Only do it once every check in projects/revenue-partner-sends/SPEC.md has passed. It will:");
     return;
   }
 
   if (sub === "apply") {
-    const item = take(ROOT, ["orgo-ask", "orgo-run", "orgo-sends-on"]);
+    const item = take(ROOT, ["orgo-ask", "orgo-run", "orgo-sends-on", "orgo-install-sender"]);
     const words = `- Jesse's words: ${item.words}\n`;
     if (item.kind === "orgo-ask") {
       if (stopped()) die("state/STOP exists; the question wasn't asked.", 5);
@@ -261,6 +357,21 @@ function main() {
       const r = onBox(vals, PRELUDE + `rm -f "$STOPFILE" /tmp/SEND-HOLD && echo "stop file removed"`, 60);
       show(r);
       logRun("sends-on", r.code === 0 ? "EXECUTED" : "FAILED", "stop file removed", words);
+      done(r);
+    }
+    if (item.kind === "orgo-install-sender") {
+      const files = senderFiles();
+      if (senderText(files) !== item.text) die("The sender's files changed since Jesse approved them, so nothing was installed. Stage it again: node tools/orgo.mjs install-sender", 5);
+      const scripts = installSenderScripts(files);
+      const tooLong = scripts.find((s) => `echo ${b64(PRELUDE + s)} | base64 -d | bash`.length > 30000);
+      if (tooLong) die("An upload piece is too long for one command line; nothing was sent. Tell Justin's team.", 4);
+      let r = { code: 0, out: "", err: "" };
+      for (const [i, s] of scripts.entries()) {
+        r = onBox(vals, PRELUDE + s, 120);
+        if (i === 0 || i === scripts.length - 1 || r.code !== 0) show(r);
+        if (r.code !== 0) { console.log(`Stopped at upload step ${i + 1} of ${scripts.length}; nothing was installed.`); break; }
+      }
+      logRun("install-sender", r.code === 0 ? "EXECUTED" : "FAILED", r.code === 0 ? "copied the one sender's files to ~/PartnerDesk/sender/" : "the sender's upload stopped; nothing installed", words);
       done(r);
     }
     const r = onBox(vals, PRELUDE + item.text, 300);

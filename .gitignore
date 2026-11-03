@@ -33,3 +33,7 @@ tools/.orgo/
 */output/
 people/templates/*
 !people/templates/.gitkeep
+
+# Python caches (the sender's tests make them)
+__pycache__/
+*.pyc

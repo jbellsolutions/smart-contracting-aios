@@ -1,0 +1,13 @@
+{
+  "_readme": "Copy to ~/PartnerDesk/sender.json on the Revenue Partner's computer and fill in the two FILL-ME values. No keys go in this file. See README.md.",
+  "adapter": "graph",
+  "token_from": "FILL-ME: <folder holding msgraph_mail.py>:msgraph_mail:get_token",
+  "test_recipient": "FILL-ME: Jesse's own email address",
+  "body_content_type": "text",
+  "business_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  "business_start": "08:00",
+  "business_end": "17:00",
+  "min_gap_minutes": 15,
+  "suppression_list": null,
+  "timeout_seconds": 30
+}
