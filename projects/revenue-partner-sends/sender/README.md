@@ -5,12 +5,13 @@ The Revenue Partner drafts partner emails and Jesse says yes in Slack. This scri
 What it does on every run:
 1. Takes the lock. If another run holds it, it logs `SKIPPED_LOCKED` and stops.
 2. Checks the stop file (`~/PartnerDesk/state/SEND-STOP`). If it's there, it logs `SKIPPED_STOPPED` and sends nothing.
-3. Checks NZ business hours (Mon to Fri, 08:00 to 17:00, Pacific/Auckland). Outside them: `SKIPPED_HOURS`.
-4. Checks the last send was at least 15 minutes ago. If not: `SKIPPED_GAP`.
-5. Settles any unclear send first, by looking in Sent Items. Found: `FOUND_IN_SENT`, and it counts as sent. Not found: `FAILED`. It never retries by itself; it needs a fresh yes from Jesse.
-6. Takes the oldest approved draft. It sends it only if Jesse's yes names the hash of the latest version. Otherwise `REFUSED_STALE` (a newer version exists) or `REFUSED_HASH` (the hash matches nothing, or the text was changed behind its back).
-7. A draft id already sent: `NO_CHANGE`. A recipient on the suppression list: `REFUSED_SUPPRESSED`.
-8. Checks the stop file and the hours once more, then sends one email and logs `SENT` with the mail system's ids.
+3. Gets the right time (see "The clock" below). If it can't: `SKIPPED_CLOCK`, and nothing sends.
+4. Checks NZ business hours (Mon to Fri, 08:00 to 17:00, Pacific/Auckland), on the right time. Outside them: `SKIPPED_HOURS`.
+5. Checks the last send was at least 15 minutes ago. If not: `SKIPPED_GAP`.
+6. Settles any unclear send first, by looking in Sent Items. Found: `FOUND_IN_SENT`, and it counts as sent. Not found: `FAILED`. It never retries by itself; it needs a fresh yes from Jesse.
+7. Takes the oldest approved draft. It sends it only if Jesse's yes names the hash of the latest version. Otherwise `REFUSED_STALE` (a newer version exists) or `REFUSED_HASH` (the hash matches nothing, or the text was changed behind its back).
+8. A draft id already sent: `NO_CHANGE`. A recipient on the suppression list: `REFUSED_SUPPRESSED`.
+9. Checks the stop file and the hours once more, then sends one email and logs `SENT` with the mail system's ids.
 
 It sends at most one email per run. A run with nothing to send logs `NO_CHANGE`.
 
@@ -34,7 +35,8 @@ Its records, in `~/PartnerDesk/` (or `$PARTNERDESK_HOME`):
 | `state/sender.lock` | The run lock |
 | `drafts/<id>.json` | Every version of each draft: recipient, subject, body, hash |
 | `approvals.jsonl` | Jesse's approvals, one per line: draft id, version, hash, his words or the Slack thread |
-| `send-log.jsonl` | Every outcome, one per line, never edited: NZ time with its offset, UTC time, draft id, version, hash, recipient, and the Graph message id and internetMessageId when known |
+| `send-log.jsonl` | Every outcome, one per line, never edited: NZ time with its offset, UTC time, `clock_offset_s` (how far the box clock was corrected), draft id, version, hash, recipient, and the Graph message id and internetMessageId when known |
+| `state/clock.json` | The last clock measurement: the offset, when, and what each time source said |
 
 ## How the AI uses it
 
@@ -58,13 +60,27 @@ A draft id is used for one email only. After it's sent, `register` and `approve`
 | `business_days`, `business_start`, `business_end` | NZ business hours. The time zone is always Pacific/Auckland and can't be changed |
 | `min_gap_minutes` | Minutes between sends. Anything under 15 counts as 15 |
 | `suppression_list` | Optional path to a text file. Any email address on any line is suppressed (lines starting `#` are skipped). If it's set and the file is missing, nothing sends |
-| `timeout_seconds` | How long each Graph call may take (5 to 120) |
+| `timeout_seconds` | How long each Graph call may take (5 to 120). A time source gets at most 15 seconds |
+| `time_sources` | Where the sender reads the right time: 1 to 5 `https://` URLs. Default: Graph and Microsoft's sign-in server |
 
 An unknown setting, or a value still starting `FILL-ME`, stops every send until it's fixed. `status` lists the problems.
 
 ## Test mode
 
 `sender.py run --test` sends only to `test_recipient`, and it's allowed while the stop file exists. Any other recipient in the queue is refused and logged `REFUSED_TEST_RECIPIENT`, and stays queued for a normal run. Everything else still applies in test mode: business hours, the 15-minute gap, the lock, latest-version-only, each draft once.
+
+## The clock
+
+The box clock can be wrong, and on an Orgo computer it may not be settable (a container's clock belongs to its host). On 3 Nov 2026 it was 32 minutes slow (`clock_off_by_seconds: -1932`). So the sender doesn't trust it.
+
+Each run asks each time source in `time_sources` for the time: one plain HEAD request, no token, nothing sent. Every HTTPS answer carries a `Date` header, even a 401. The offset is that time minus the middle of the request on the box clock; an answer that takes over 10 seconds doesn't count. It uses the middle value of the sources that answered. The right time is then the box clock plus the offset, and every decision uses it: business hours, the 15-minute gap, the Sent Items check after an unclear send, and every log time. Each log line records `clock_offset_s`.
+
+- Each measurement is saved to `state/clock.json`.
+- No source answers: it uses the saved offset if it was measured in the last 6 hours. Otherwise `SKIPPED_CLOCK`: nothing sends on an unknown clock.
+- An offset over 6 hours is a mistake, not a slow clock: `SKIPPED_CLOCK` ("clock offset implausible"), and it isn't saved.
+- `status` shows the box clock in UTC, what each source said, the offset and how old it is, and the corrected NZ time. Once `sender.json` exists, `node tools/orgo.mjs status` shows the same, with `sender_clock_off_by_seconds` against Jesse's PC.
+
+This only fixes the sender. Hermes's own cron jobs still run on the box clock (see `../SPEC.md`, check 3).
 
 ## Unclear sends
 
@@ -78,7 +94,7 @@ In the Hermes user's crontab, and nowhere else:
 */15 * * * * cd "$HOME/PartnerDesk/sender" && python3 sender.py run >> "$HOME/PartnerDesk/state/sender-cron.log" 2>&1
 ```
 
-Cron on the computer runs in UTC. That's fine: the sender checks the hours in NZ time itself. Use the same `python3` the agent's mail code runs under (if `msgraph_mail.py` needs packages from the agent's own Python, put that Python's full path in the line). Because each run takes a second or two, the next run is usually just under 15 minutes after a send, so sends land about 30 minutes apart. That's on the safe side of the rule.
+Cron on the computer runs in UTC. That's fine: the sender checks the hours in NZ time itself, on its corrected clock. If the box clock is off, `*/15` still runs every 15 minutes; only the minute it lands on shifts. Use the same `python3` the agent's mail code runs under (if `msgraph_mail.py` needs packages from the agent's own Python, put that Python's full path in the line). Because each run takes a second or two, the next run is usually just under 15 minutes after a send, so sends land about 30 minutes apart. That's on the safe side of the rule.
 
 ## Install on the Revenue Partner's computer, in this order
 
@@ -114,8 +130,8 @@ python3 -m unittest
 python3 sender.py selfcheck
 ```
 
-`selfcheck` runs SPEC checks 1, 2, 4 and 5 and the test-mode check in a temporary folder with the fake adapter. It touches nothing real and sends nothing.
+`selfcheck` runs SPEC checks 1, 2, 4 and 5, the test-mode check and the clock check (a 32-minute-slow box clock still gives the right NZ hours and gap) in a temporary folder with the fake adapter. It touches nothing real and sends nothing.
 
 ## Not proven yet
 
-Nothing here has run on the real computer or against Jesse's mailbox. Still to prove there: where `msgraph_mail.py` lives and that its `get_token(force_refresh=...)` works as described; that the cron environment can import it; that Graph keeps the internetMessageId from create to Sent Items (the recipient-and-subject fallback covers it if not); and that `~/PartnerDesk/drafts/` isn't already used by the partner program (`install-sender` lists what's already in `~/PartnerDesk`).
+Nothing here has run on the real computer or against Jesse's mailbox. Still to prove there: where `msgraph_mail.py` lives and that its `get_token(force_refresh=...)` works as described; that the cron environment can import it; that Graph keeps the internetMessageId from create to Sent Items (the recipient-and-subject fallback covers it if not); that `~/PartnerDesk/drafts/` isn't already used by the partner program (`install-sender` lists what's already in `~/PartnerDesk`); and that the computer reaches both time sources and their `Date` agrees with Jesse's PC to within a few seconds (`status`, under "the sender's own clock").

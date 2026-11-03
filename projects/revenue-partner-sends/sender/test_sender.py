@@ -15,7 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import sender  # noqa: E402
-from graph_adapter import GRAPH, FakeAdapter, GraphAdapter, LookupFailed, SendFailed, SendUnclear  # noqa: E402
+from graph_adapter import GRAPH, FakeAdapter, GraphAdapter, LookupFailed, SendFailed, SendUnclear, measure_clock  # noqa: E402
 
 NZ = sender.NZ
 TUE_10 = dt.datetime(2026, 11, 3, 10, 1, tzinfo=NZ)  # Tuesday, NZ daylight time (+13:00)
@@ -543,7 +543,246 @@ class Selfcheck(unittest.TestCase):
     def test_selfcheck_passes(self):
         out = io.StringIO()
         self.assertEqual(sender.selfcheck(out), 0, out.getvalue())
-        self.assertEqual(out.getvalue().count("PASS"), 5)
+        self.assertEqual(out.getvalue().count("PASS"), 6)
+        self.assertIn("PASS  clock: a 32-minute-slow system clock", out.getvalue())
+
+
+SLOW = -1932  # the Revenue Partner's box clock on 3 Nov 2026: 32 minutes behind
+
+
+class SlowClock(Base):
+    """The box clock is 32 minutes slow and can't be set. The sender measures the offset and uses corrected time."""
+
+    def setUp(self):
+        super().setUp()
+        self.fake.clock_offset = -SLOW
+        self.at(TUE_10)
+
+    def at(self, true_nz):
+        self.clock.t = true_nz + dt.timedelta(seconds=SLOW)  # what the box clock says at that true time
+
+    def test_opens_at_eight_on_corrected_time(self):
+        self.draft("d")
+        self.at(dt.datetime(2026, 11, 3, 7, 59, 30, tzinfo=NZ))  # box says 07:27
+        self.desk.run()
+        self.assertEqual(self.outcomes()[-1], "SKIPPED_HOURS")
+        self.assertIn("07:59 NZ", self.log()[-1]["reason"])
+        self.at(dt.datetime(2026, 11, 3, 8, 0, 0, tzinfo=NZ))  # box says 07:28: the box alone would wait 32 minutes
+        self.desk.run()
+        e = self.log()[-1]
+        self.assertEqual(e["outcome"], "SENT")
+        self.assertEqual(e["at"], "2026-11-03T08:00:00+13:00")
+        self.assertEqual(e["at_utc"], "2026-11-02T19:00:00+00:00")
+
+    def test_closes_at_five_on_corrected_time(self):
+        self.draft("a")
+        self.draft("b", to="other@example.invalid")
+        self.at(dt.datetime(2026, 11, 3, 16, 59, 0, tzinfo=NZ))  # box says 16:27
+        self.desk.run()
+        self.assertEqual(self.outcomes()[-1], "SENT")
+        self.at(dt.datetime(2026, 11, 3, 17, 14, 0, tzinfo=NZ))  # box says 16:42: the box alone would still send
+        self.desk.run()
+        self.assertEqual(self.outcomes()[-1], "SKIPPED_HOURS")
+        self.assertEqual(len(self.fake.sent), 1)
+
+    def test_gap_on_corrected_time(self):
+        self.draft("a")
+        self.draft("b", to="other@example.invalid")
+        self.desk.run()
+        self.assertEqual(self.log()[-1]["at"], "2026-11-03T10:01:00+13:00")
+        self.clock.advance(14)
+        self.desk.run()
+        self.assertEqual(self.outcomes()[-1], "SKIPPED_GAP")
+        self.assertIn("next from 10:16 NZ", self.log()[-1]["reason"])
+        self.clock.advance(1)  # 15 real minutes later; the box clock alone would say 09:44, before the last send
+        self.desk.run()
+        self.assertEqual([m["to"] for m in self.fake.sent], ["partner@example.invalid", "other@example.invalid"])
+
+    def test_every_log_entry_carries_the_offset(self):
+        self.draft("d")
+        self.desk.run()
+        self.stop()
+        self.clock.advance(15)
+        self.desk.run()  # SKIPPED_STOPPED, before any measuring: the saved offset is used
+        fd = self.desk.lock()
+        try:
+            self.desk.run()  # SKIPPED_LOCKED
+        finally:
+            sender.Desk.unlock(fd)
+        self.assertEqual(self.outcomes(), ["SENT", "SKIPPED_STOPPED", "SKIPPED_LOCKED"])
+        self.assertEqual([e["clock_offset_s"] for e in self.log()], [1932, 1932, 1932])
+        self.assertEqual(self.log()[1]["at"], "2026-11-03T10:16:00+13:00")
+        a = sender.read_jsonl(self.desk.approvals_path)[0]
+        self.assertIn("clock_offset_s", a)
+
+    def test_measurement_saved(self):
+        self.draft("d")
+        self.desk.run()
+        with open(self.desk.clock_path) as f:
+            c = json.load(f)
+        self.assertEqual(c["offset_s"], 1932)
+        self.assertEqual(c["measured_at_utc"], "2026-11-02T21:01:00+00:00")
+        self.assertEqual([x["url"] for x in c["sources"]], sender.DEFAULTS["time_sources"])
+
+    def test_median_of_sources(self):
+        self.fake.measure_clock = lambda urls: [{"url": "a", "offset_s": 5.0}, {"url": "b", "offset_s": 1932.0},
+                                                {"url": "c", "offset_s": 1933.0}, {"url": "d", "error": "down"}]
+        self.draft("d")
+        self.desk.run()
+        self.assertEqual(self.log()[-1]["clock_offset_s"], 1932)
+
+    def test_no_source_fresh_saved_offset_used(self):
+        self.draft("a")
+        self.draft("b", to="other@example.invalid")
+        self.desk.run()
+        self.fake.clock = "fail"
+        self.clock.advance(5 * 60 + 50)  # 5 h 50 min later: 15:51 NZ, box says 15:19
+        self.desk.run()
+        e = self.log()[-1]
+        self.assertEqual(e["outcome"], "SENT")
+        self.assertEqual(e["at"], "2026-11-03T15:51:00+13:00")
+        self.assertEqual(e["clock_offset_s"], 1932)
+
+    def test_no_source_stale_saved_offset_refuses(self):
+        self.draft("a")
+        self.draft("b", to="other@example.invalid")
+        self.desk.run()
+        self.fake.clock = "fail"
+        self.clock.advance(6 * 60 + 1)
+        self.assertEqual(self.desk.run(), 2)
+        e = self.log()[-1]
+        self.assertEqual(e["outcome"], "SKIPPED_CLOCK")
+        self.assertIn("no time source answered", e["reason"])
+        self.assertIsNone(e["clock_offset_s"])
+        self.assertEqual(len(self.fake.attempts), 1)
+
+    def test_no_source_and_nothing_saved_refuses(self):
+        self.fake.clock = "fail"
+        self.draft("d", to="jesse@example.invalid")
+        self.assertEqual(self.desk.run(), 2)
+        self.assertEqual(self.desk.run(test=True), 2)
+        self.assertEqual(self.outcomes(), ["SKIPPED_CLOCK", "SKIPPED_CLOCK"])
+        self.assertEqual(self.fake.attempts, [])
+        self.assertFalse(os.path.exists(self.desk.clock_path))
+
+    def test_implausible_offset_refuses(self):
+        self.fake.clock_offset = 6 * 3600 + 60
+        self.draft("d")
+        self.assertEqual(self.desk.run(), 2)
+        e = self.log()[-1]
+        self.assertEqual(e["outcome"], "SKIPPED_CLOCK")
+        self.assertIn("clock offset implausible", e["reason"])
+        self.assertEqual(self.fake.attempts, [])
+        self.assertFalse(os.path.exists(self.desk.clock_path), "an implausible offset isn't saved")
+
+    def test_implausible_saved_offset_refuses(self):
+        os.makedirs(self.desk.state_dir, exist_ok=True)
+        with open(self.desk.clock_path, "w") as f:
+            json.dump({"offset_s": -8 * 3600, "system_utc": self.clock.t.astimezone(dt.timezone.utc).isoformat()}, f)
+        self.fake.clock = "fail"
+        self.draft("d")
+        self.assertEqual(self.desk.run(), 2)
+        self.assertIn("clock offset implausible", self.log()[-1]["reason"])
+        self.assertEqual(self.fake.attempts, [])
+
+    def test_unclear_from_box_clock_widens_lookup(self):
+        _, h = self.draft("d")
+        a = sender.read_jsonl(self.desk.approvals_path)[0]
+        sender.append_line(self.desk.log_path, {"outcome": "UNCLEAR", "mode": "live", "approval_id": a["approval_id"], "draft_id": "d",
+                                                "to": "partner@example.invalid", "subject": "Hello", "at_utc": "2026-11-02T20:00:00+00:00"})
+        seen = []
+        self.fake.find_in_sent = lambda imid, to, subject, since: seen.append(since)
+        self.desk.run()
+        self.assertEqual(seen, [dt.datetime(2026, 11, 2, 19, 50, tzinfo=dt.timezone.utc) - dt.timedelta(seconds=1932)])
+
+    def test_fake_now_and_fake_offset_from_the_command_line(self):
+        self.draft("d")
+        env = dict(os.environ, PARTNERDESK_HOME=self.tmp, PARTNERDESK_FAKE_NOW=self.clock.t.isoformat(),
+                   PARTNERDESK_FAKE_CLOCK_OFFSET="1932")
+        p = subprocess.run([sys.executable, os.path.join(HERE, "sender.py"), "run"], env=env, capture_output=True, text=True, timeout=60)
+        self.assertIn("SENT d", p.stdout, p.stdout + p.stderr)
+        self.assertEqual(self.log()[-1]["at"], "2026-11-03T10:01:00+13:00")
+
+    def test_status_shows_the_clock(self):
+        self.desk.status()
+        text = self.out.getvalue()
+        self.assertIn("system_utc: 2026-11-02T20:28:48+00:00", text)
+        self.assertIn("offset: +1932.0 s, measured just now", text)
+        self.assertIn("nz:  2026-11-03T10:01:00+13:00 (corrected)", text)
+        self.assertIn("corrected_epoch: %d" % TUE_10.timestamp(), text)
+        self.assertFalse(os.path.exists(self.desk.clock_path), "status saves nothing")
+        self.fake.clock = "fail"
+        self.out.truncate(0)
+        self.desk.status()
+        self.assertIn("offset: UNKNOWN; a run would send nothing (SKIPPED_CLOCK)", self.out.getvalue())
+
+    def test_bad_time_sources_refused(self):
+        self.desk = self.make(time_sources=["http://example.invalid/"])
+        self.draft("d")
+        self.assertEqual(self.desk.run(), 2)
+        self.assertIn("time_sources", self.log()[-1]["reason"])
+        self.assertEqual(self.fake.attempts, [])
+
+
+class Hdrs(dict):
+    def get(self, k, default=None):
+        return dict.get(self, k, default)
+
+
+class TimeResp:
+    def __init__(self, date):
+        self.headers = Hdrs({"Date": date} if date else {})
+        self.status = 200
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+class Wall:
+    def __init__(self, *ticks):
+        self.ticks = list(ticks)
+
+    def __call__(self):
+        return self.ticks.pop(0)
+
+
+class MeasureClockTests(unittest.TestCase):
+    DATE = "Mon, 02 Nov 2026 21:01:00 GMT"
+    SERVER = dt.datetime(2026, 11, 2, 21, 1, 0, tzinfo=dt.timezone.utc).timestamp()
+
+    def test_offset_from_the_middle_of_the_request(self):
+        net = FakeNet(TimeResp(self.DATE))
+        t0 = self.SERVER - 1932
+        res = measure_clock(["https://graph.microsoft.com/v1.0/"], net, wall=Wall(t0, t0 + 0.4))
+        self.assertEqual(res, [{"url": "https://graph.microsoft.com/v1.0/", "offset_s": 1932.3, "rtt_s": 0.4}])
+        req = net.requests[0]
+        self.assertEqual(req.get_method(), "HEAD")
+        self.assertIsNone(req.get_header("Authorization"), "no token goes to a time source")
+
+    def test_an_error_answer_still_tells_the_time(self):
+        err = urllib.error.HTTPError("u", 401, "x", Hdrs({"Date": self.DATE}), io.BytesIO(b""))
+        res = measure_clock(["https://login.microsoftonline.com/"], FakeNet(err), wall=Wall(self.SERVER, self.SERVER))
+        self.assertEqual(res[0]["offset_s"], 0.5)
+
+    def test_no_answer_no_date_slow_answer_not_https(self):
+        res = measure_clock(["https://a.invalid/", "https://b.invalid/", "https://c.invalid/", "http://d.invalid/"],
+                            FakeNet(urllib.error.URLError("down"), TimeResp(None), TimeResp(self.DATE)),
+                            wall=Wall(0, 0, 0, self.SERVER, self.SERVER + 11))
+        self.assertTrue(all("error" in r and "offset_s" not in r for r in res), res)
+        self.assertIn("network error", res[0]["error"])
+        self.assertIn("no usable Date", res[1]["error"])
+        self.assertIn("too slow", res[2]["error"])
+        self.assertIn("not an https", res[3]["error"])
+
+    def test_graph_adapter_uses_its_own_time_opener(self):
+        net = FakeNet(TimeResp(self.DATE), TimeResp(self.DATE))
+        g = GraphAdapter(Tokens(), urlopen=FakeNet(), time_urlopen=net)
+        res = g.measure_clock(sender.DEFAULTS["time_sources"])
+        self.assertEqual(len(res), 2)
+        self.assertEqual([r.full_url for r in net.requests], sender.DEFAULTS["time_sources"])
 
 
 # ---- the Graph adapter, with a fake urlopen ----------------------------------------------------------------

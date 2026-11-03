@@ -16,7 +16,7 @@ description: Connects the Chief of Staff to the Revenue Partner's Orgo computer 
 ## What needs no approval
 | Command | Does | Use when |
 |---|---|---|
-| `node tools/orgo.mjs status` | Reads the clock (NZ time, and seconds off from this PC), Hermes and its profiles, the gateway, whether the one sender is installed and its last 3 send-log entries, the stop files, every timer (cron, `at`, systemd, Hermes jobs for each profile) and any send-like process | "Is it OK?", the morning brief's check, and each one-sender check |
+| `node tools/orgo.mjs status` | Reads the clock (NZ time, seconds off from this PC, NTP, whether it's a container, and the sender's own corrected clock), Hermes and its profiles, the gateway, whether the one sender is installed and its last 3 send-log entries, the stop files, every timer (cron, `at`, systemd, Hermes jobs for each profile) and any send-like process | "Is it OK?", the morning brief's check, and each one-sender check |
 | `node tools/orgo.mjs sender-check` | Runs the one sender's `selfcheck` (in a temporary folder, with a fake mailbox) and `status`; shows where the agent's `msgraph_mail.py` is; lists every cron line, `at` job, systemd timer, Hermes job and process that mentions sending; and lists the files outside `~/PartnerDesk/sender/` that call the mail API (paths only) | Installing the sender, and SPEC checks 1, 2, 4 and 5 |
 | `node tools/orgo.mjs logs 80 gateway` (or `errors`, `agent`) | The last lines of one Hermes log | It's gone quiet, or a send went wrong |
 | `node tools/orgo.mjs hold` | Adds the stop file, then lists every timer and send-like process | Jesse says "hold", or a send looks wrong. Protective: it only adds the stop file, needs no code, and works even while `state/STOP` exists |
@@ -54,7 +54,7 @@ Only when every check in `projects/revenue-partner-sends/SPEC.md` has passed and
 ## Stops and tells Jesse when
 - `status` can't reach the computer, or finds Hermes UNKNOWN: say exactly what it printed. If the computer is switched off or can't be found, Jesse checks orgo.ai himself, and the checklist in `modules/partner-program/.claude/skills/revenue-partner-doctor/SKILL.md` tells him what to type in its terminal (this workspace doesn't type into web pages).
 - A timer or process that sends is running while the stop file is present: say so first, before anything else.
-- The clock is more than 30 seconds off.
+- The clock is more than 30 seconds off: run the fallback order in `projects/revenue-partner-sends/SPEC.md` (check 3), one `plan` at a time with Jesse's code: `timedatectl set-ntp true`; if NTP isn't supported and `status` says `container: no sign of one`, install a time service; if `container: yes`, tell Jesse the sender keeps its own clock (`sender_clock_off_by_seconds` within 30 passes check 3), Hermes's own jobs run late by the offset, and Justin's team can raise it with Orgo.
 - `sender-check` prints any FAIL, a scheduler entry or process that sends other than the sender's one cron line, or a file that calls the mail API outside `~/PartnerDesk/sender/` (other than `msgraph_mail.py` itself).
 
 ## Log

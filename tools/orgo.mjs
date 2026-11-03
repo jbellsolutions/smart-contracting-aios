@@ -4,7 +4,8 @@
 //   node tools/orgo.mjs computers              read-only: list the computers Jesse's Orgo key can see (name, workspace, status)
 //   node tools/orgo.mjs use "name"             save which one is the Revenue Partner (ORGO_COMPUTER; must match the list)
 //   node tools/orgo.mjs workspace "name"       only if two computers share the name: save which workspace (ORGO_WORKSPACE)
-//   node tools/orgo.mjs status                 read-only: NZ time and clock drift, Hermes and its profiles, the gateway,
+//   node tools/orgo.mjs status                 read-only: NZ time and clock drift, NTP and whether the box is a container,
+//                                              the sender's own corrected clock, Hermes and its profiles, the gateway,
 //                                              the stop files, every timer (per profile) and any send-like process
 //   node tools/orgo.mjs logs [lines] [gateway|errors|agent]   read-only: tail one Hermes log
 //   node tools/orgo.mjs hold                   protective: create the stop file, then list every timer (never blocked)
@@ -126,6 +127,20 @@ echo "## clock"
 echo "box_epoch: $(date +%s)"
 echo "box_nz: $(TZ=Pacific/Auckland date '+%Y-%m-%d %H:%M %Z')"
 timedatectl show -p NTPSynchronized -p Timezone 2>/dev/null || echo "ntp: UNKNOWN"
+if command -v timedatectl >/dev/null 2>&1; then
+  echo "ntp_detail: $(timedatectl show -p NTP -p NTPSynchronized -p CanNTP 2>&1 | tr '\n' ' ' | cut -c1-200)"
+else
+  TS=""; for t in chronyd systemd-timesyncd ntpd; do w=$(command -v "$t" 2>/dev/null || ls /lib/systemd/"$t" /usr/lib/systemd/"$t" 2>/dev/null | head -1); TS="$TS $t=$([ -n "$w" ] && echo "$w" || echo none)"; done
+  echo "ntp_detail: timedatectl missing; time services:$TS"
+fi
+CT=""; [ -e /.dockerenv ] && CT="$CT /.dockerenv"; [ -e /run/.containerenv ] && CT="$CT /run/.containerenv"
+V=$(systemd-detect-virt -c 2>/dev/null); [ -n "$V" ] && [ "$V" != none ] && CT="$CT systemd-detect-virt=$V"
+[ -n "$CT" ] && echo "container: yes ($(echo $CT)); the clock belongs to the host and can't be set here" || echo "container: no sign of one"
+SJ="$HH/PartnerDesk/sender.json"
+if [ -n "$HH" ] && [ -f "$HH/PartnerDesk/sender/sender.py" ] && [ -f "$SJ" ]; then
+  echo "## the sender's own clock (read-only; it corrects for a wrong box clock)"
+  ( cd / && sender status 2>&1 ) | sed -n '/^## clock/,/^## stop file/p' | grep -v '^## '
+fi
 echo "## hermes"
 [ -n "$H" ] && echo "binary: $H" || echo "binary: UNKNOWN"
 [ -n "$U" ] && echo "runs_as: $U" || echo "runs_as: UNKNOWN"
@@ -230,6 +245,16 @@ function logRun(sub, outcome, result, extra = "") {
 }
 
 const show = (r) => console.log(r.out || r.err);
+
+// The computer prints its clock as box_epoch (its own) and corrected_epoch (the sender's corrected time). Compare
+// each with this PC's clock when the call started: the computer prints them near the start, and the whole call
+// (connecting, Hermes, timers) can take longer than the 30 seconds that matter.
+function offsets(out, t0, t1) {
+  const took = `the call took ${Math.round(t1 - t0)} s`;
+  return String(out || "")
+    .replace(/^box_epoch: (\d+)$/m, (_, e) => `clock_off_by_seconds: ${Math.round(Number(e) - t0)} (the computer vs this PC when the call started; ${took}; over 30 is a problem)`)
+    .replace(/^corrected_epoch: (\d+)$/gm, (_, e) => `sender_clock_off_by_seconds: ${Math.round(Number(e) - t0)} (the sender's corrected time vs this PC when the call started; ${took}; over 30 is a problem)`);
+}
 const done = (r) => process.exit(r.code === 0 ? 0 : 2);
 const stopped = () => fs.existsSync(path.join(ROOT, "state", "STOP"));
 
@@ -280,8 +305,9 @@ function main() {
   const profile = vals.ORGO_PROFILE ? `-p ${vals.ORGO_PROFILE}` : "";
 
   if (sub === "status") {
+    const t0 = Date.now() / 1000;
     const r = onBox(vals, STATUS, 150);
-    const out = r.out.replace(/^box_epoch: (\d+)$/m, (_, e) => `clock_off_by_seconds: ${Math.round(Number(e) - Date.now() / 1000)} (the computer vs this PC; over 30 is a problem)`);
+    const out = offsets(r.out, t0, Date.now() / 1000);
     console.log(`this_pc_nz: ${nzNow()}`);
     console.log(out || r.err);
     logRun("status", r.code === 0 ? "EXECUTED" : "FAILED", r.code === 0 ? "read the computer's state" : "couldn't reach the computer");
@@ -299,7 +325,9 @@ function main() {
   }
 
   if (sub === "sender-check") {
+    const t0 = Date.now() / 1000;
     const r = onBox(vals, SENDER_CHECK, 300);
+    r.out = offsets(r.out, t0, Date.now() / 1000);
     show(r);
     logRun("sender-check", r.code === 0 ? "EXECUTED" : "FAILED", r.code === 0 ? "ran the sender's selfcheck and status, listed send timers and mail-API callers" : "couldn't run the sender check");
     done(r);

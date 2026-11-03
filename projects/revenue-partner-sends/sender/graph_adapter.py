@@ -13,18 +13,26 @@ The access token comes from the agent's own mail code. sender.json names it as "
 added to sys.path, and the function is called as fn(force_refresh=False), then once with force_refresh=True if
 Graph answers 401. The token is never printed, logged or stored here.
 
+measure_clock reads the time from the HTTPS Date header of each time source (by default Graph itself and
+Microsoft's sign-in server). It sends no token and no mail: one HEAD request each, and any answer counts, even
+401 or 405, because every answer carries Date. The offset is the server's time minus the middle of the request,
+on this computer's own clock. The sender uses it when the box clock is wrong and can't be set (an Orgo container).
+
 FakeAdapter is for tests and selfcheck: it records what it would send and never touches the network.
 """
+import email.utils
 import importlib
 import json
 import os
 import secrets
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
 GRAPH = "https://graph.microsoft.com/v1.0"
+MAX_CLOCK_RTT_S = 10  # a slower answer is too vague to set the clock by
 
 
 class SendFailed(Exception):
@@ -94,16 +102,69 @@ def describe(err):
     return "%s: %s" % (type(err).__name__, str(err)[:160])
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect answer is answer enough: its Date header is read, and it isn't followed."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+_CLOCK_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def measure_clock(urls, urlopen=None, timeout=15, wall=time.time):
+    """One result per URL: {"url", "offset_s", "rtt_s"} or {"url", "error"}. Never raises.
+    offset_s = the server's Date (plus half a second, as Date drops the fraction) minus the middle of the request."""
+    urlopen = urlopen or _CLOCK_OPENER.open
+    results = []
+    for url in urls or []:
+        r = {"url": str(url)}
+        results.append(r)
+        if not str(url).startswith("https://"):
+            r["error"] = "not an https URL"
+            continue
+        req = urllib.request.Request(str(url), method="HEAD", headers={"Cache-Control": "no-cache", "User-Agent": "partnerdesk-sender"})
+        t0 = wall()
+        headers = None
+        try:
+            with urlopen(req, timeout=timeout) as resp:
+                headers = getattr(resp, "headers", None)
+        except urllib.error.HTTPError as e:  # 401, 405, a redirect: still a server answer with a Date
+            headers = e.headers
+        except Exception as e:  # noqa: BLE001 - no answer from this source
+            r["error"] = describe(e)
+            continue
+        t1 = wall()
+        date = headers.get("Date") if headers is not None else None
+        try:
+            server = email.utils.parsedate_to_datetime(date).timestamp() + 0.5
+        except (TypeError, ValueError, AttributeError, IndexError):
+            r["error"] = "no usable Date header"
+            continue
+        rtt = t1 - t0
+        if rtt < 0 or rtt > MAX_CLOCK_RTT_S:
+            r["error"] = "answer took %.1f s; too slow to set the clock by" % rtt
+            continue
+        r["offset_s"] = round(server - (t0 + t1) / 2, 3)
+        r["rtt_s"] = round(rtt, 3)
+    return results
+
+
 class GraphAdapter:
     name = "graph"
 
-    def __init__(self, token_from, content_type="text", timeout=30, urlopen=None):
+    def __init__(self, token_from, content_type="text", timeout=30, urlopen=None, time_urlopen=None):
         self._token_from = token_from
         self._fn = token_from if callable(token_from) else None
         self._token = None
         self.content_type = "HTML" if str(content_type).lower() == "html" else "Text"
         self.timeout = timeout
         self._urlopen = urlopen or urllib.request.urlopen
+        self._time_urlopen = time_urlopen
+
+    def measure_clock(self, urls):
+        """The box clock's offset from each time source. No token, nothing sent."""
+        return measure_clock(urls, self._time_urlopen, timeout=min(float(self.timeout), 15))
 
     def _get_token(self, force):
         try:
@@ -210,17 +271,28 @@ class FakeAdapter:
     mode: "ok" sends; "fail" raises SendFailed; "unclear" raises SendUnclear (and, if unclear_delivered, also puts
     the email in Sent Items, as when the send went through but the answer was lost).
     lookup: "ok" checks Sent Items; "fail" raises LookupFailed.
+    clock_offset: what measure_clock reports, in seconds (+1932 = the box clock is 32 minutes slow).
+    clock: "ok" answers from every time source; "fail" from none.
     """
 
     name = "fake"
 
-    def __init__(self, outbox=None, mode="ok", lookup="ok", unclear_delivered=False):
+    def __init__(self, outbox=None, mode="ok", lookup="ok", unclear_delivered=False, clock_offset=0.0, clock="ok"):
         self.outbox = outbox
         self.mode = mode
         self.lookup = lookup
         self.unclear_delivered = unclear_delivered
+        self.clock_offset = clock_offset
+        self.clock = clock
         self.sent = []          # emails that went out
         self.attempts = []      # every send call
+        self.clock_reads = 0
+
+    def measure_clock(self, urls):
+        self.clock_reads += 1
+        if self.clock == "fail":
+            return [{"url": u, "error": "fake adapter: no answer"} for u in urls]
+        return [{"url": u, "offset_s": float(self.clock_offset), "rtt_s": 0.0} for u in urls]
 
     def _items(self):
         items = list(self.sent)

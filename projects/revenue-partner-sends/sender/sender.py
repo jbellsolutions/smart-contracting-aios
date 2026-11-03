@@ -5,6 +5,11 @@ The AI only drafts and records Jesse's approval. This script is the only code th
 cron line, holds a lock, sends at most one email per run, checks the stop file before every email, sends only
 in NZ business hours and at least 15 minutes apart, and sends only a draft whose latest text Jesse approved.
 
+It doesn't trust the box clock. Each run measures the clock's offset from the HTTPS Date header of trusted time
+sources (Graph itself, and Microsoft's sign-in server), and every decision and log time uses the box clock plus
+that offset. No source answers: it uses the last offset if it was measured in the last 6 hours, and otherwise
+sends nothing (SKIPPED_CLOCK). An offset over 6 hours is refused too.
+
   sender.py register --id <id> --to <addr> --subject <s> --body-file <path|->   add a version of a draft
   sender.py approve --id <id> --sha256 <hash> --by "<Jesse's words / Slack ts>" record Jesse's yes
   sender.py run [--test]                                                        send at most one email
@@ -19,6 +24,7 @@ Files, under ~/PartnerDesk (or $PARTNERDESK_HOME):
   drafts/<id>.json     every version of each draft
   approvals.jsonl      Jesse's approvals, one per line
   send-log.jsonl       every outcome, one per line, append-only
+  state/clock.json     the last clock measurement: offset, when, and each source's answer
 
 Python 3.9+, standard library only.
 """
@@ -33,6 +39,7 @@ import os
 import re
 import secrets
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -64,7 +71,10 @@ DEFAULTS = {
     "min_gap_minutes": 15,
     "suppression_list": None,
     "timeout_seconds": 30,
+    "time_sources": ["https://graph.microsoft.com/v1.0/", "https://login.microsoftonline.com/"],
 }
+CLOCK_MAX_AGE_S = 6 * 3600     # a saved offset older than this isn't used
+CLOCK_MAX_OFFSET_S = 6 * 3600  # an offset bigger than this is a mistake, not a slow clock
 # Outcomes that close an approval for good. A new approval is needed after any of these except SENT/FOUND_IN_SENT.
 CLOSING = {"SENT", "FOUND_IN_SENT", "NO_CHANGE", "REFUSED_HASH", "REFUSED_STALE", "REFUSED_SUPPRESSED", "FAILED"}
 SENT_LIKE = {"SENT", "FOUND_IN_SENT"}
@@ -204,12 +214,16 @@ class Desk:
         self.approvals_path = os.path.join(self.home, "approvals.jsonl")
         self.log_path = os.path.join(self.home, "send-log.jsonl")
         self.config_path = os.path.join(self.home, "sender.json")
+        self.clock_path = os.path.join(self.state_dir, "clock.json")
+        self._offset = None        # the clock offset this run measured (or took from clock.json)
+        self._offset_set = False   # True once this run has decided its offset (None = unknown)
 
     # ---- small helpers ------------------------------------------------------------------------------------
     def say(self, msg):
         print(msg, file=self.out)
 
-    def now(self):
+    def system_now(self):
+        """The box's own clock, which may be wrong."""
         if self._now is not None:
             t = self._now() if callable(self._now) else self._now
             return t.astimezone(UTC)
@@ -217,6 +231,63 @@ class Desk:
         if fake and self._raw_config().get("adapter") == "fake":  # a frozen clock only ever works with the fake adapter
             return parse_time(fake)
         return dt.datetime.now(UTC)
+
+    def now(self):
+        """The corrected time: the box clock plus the measured offset. Unknown offset: the box clock."""
+        off = self.offset()
+        t = self.system_now()
+        return t + dt.timedelta(seconds=off) if off is not None else t
+
+    def offset(self):
+        """This run's offset once measured; before that (and in register/approve) the saved one, if fresh."""
+        if self._offset_set:
+            return self._offset
+        saved = self.saved_clock()
+        return saved["offset_s"] if saved and saved["fresh"] else None
+
+    def saved_clock(self):
+        """state/clock.json as {"offset_s", "age_s", "fresh", ...}, or None. Age is on the box clock, like the
+        measurement itself. Fresh: measured in the last 6 hours and plausible."""
+        try:
+            with open(self.clock_path, encoding="utf-8") as f:
+                c = json.load(f)
+            off = float(c["offset_s"])
+            age = (self.system_now() - parse_time(c["system_utc"])).total_seconds()
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+        c.update(offset_s=off, age_s=age, fresh=-60 <= age <= CLOCK_MAX_AGE_S and abs(off) <= CLOCK_MAX_OFFSET_S)
+        return c
+
+    def read_clock(self, cfg, ad):
+        """Ask every time source. Returns (median offset or None, the sources' answers)."""
+        try:
+            answers = ad.measure_clock(list(cfg["time_sources"]))
+        except Exception as e:  # noqa: BLE001 - a broken clock read is the same as no answer
+            answers = [{"url": "?", "error": "%s: %s" % (type(e).__name__, str(e)[:100])}]
+        good = [float(a["offset_s"]) for a in answers if isinstance(a, dict) and a.get("offset_s") is not None]
+        return (statistics.median(good) if good else None), answers
+
+    def measure_clock(self, cfg, ad):
+        """Decide this run's offset. Returns None if it can, else the reason nothing may send (SKIPPED_CLOCK)."""
+        self._offset, self._offset_set = None, True
+        off, answers = self.read_clock(cfg, ad)
+        if off is not None:
+            if abs(off) > CLOCK_MAX_OFFSET_S:
+                return "clock offset implausible: the time sources say the box clock is off by %+.0f s (over 6 hours)" % off
+            sys_t = self.system_now()
+            self._offset = off
+            write_atomic(self.clock_path, {"offset_s": round(off, 3), "system_utc": sys_t.isoformat(timespec="seconds"),
+                                           "measured_at_utc": (sys_t + dt.timedelta(seconds=off)).isoformat(timespec="seconds"),
+                                           "sources": answers})
+            return None
+        why = "; ".join("%s: %s" % (a.get("url"), a.get("error")) for a in answers if isinstance(a, dict))
+        saved = self.saved_clock()
+        if saved and saved["fresh"]:
+            self._offset = saved["offset_s"]
+            return None
+        if saved and abs(saved["offset_s"]) > CLOCK_MAX_OFFSET_S:
+            return "clock offset implausible: the saved offset is %+.0f s (over 6 hours)" % saved["offset_s"]
+        return "no time source answered (%s) and no offset was measured in the last 6 hours; nothing sends on an unknown clock" % why
 
     def _raw_config(self):
         try:
@@ -281,6 +352,9 @@ class Desk:
         sl = cfg["suppression_list"]
         if sl and not os.path.isfile(os.path.expanduser(str(sl))):
             problems.append("suppression_list file doesn't exist: %s" % sl)
+        ts = cfg["time_sources"]
+        if not isinstance(ts, list) or not 1 <= len(ts) <= 5 or not all(isinstance(u, str) and u.startswith("https://") for u in ts):
+            problems.append("time_sources must be a list of 1 to 5 https:// URLs")
         if NZ is None:
             problems.append("Python has no Pacific/Auckland time zone data (install tzdata)")
         return cfg, problems
@@ -304,7 +378,9 @@ class Desk:
             return self._adapter
         if cfg["adapter"] == "fake":
             return FakeAdapter(outbox=os.path.join(self.home, "fake-outbox.jsonl"),
-                               mode=os.environ.get("PARTNERDESK_FAKE_MODE", "ok"))
+                               mode=os.environ.get("PARTNERDESK_FAKE_MODE", "ok"),
+                               clock_offset=float(os.environ.get("PARTNERDESK_FAKE_CLOCK_OFFSET") or 0),
+                               clock=os.environ.get("PARTNERDESK_FAKE_CLOCK", "ok"))
         return GraphAdapter(cfg["token_from"], cfg["body_content_type"], cfg["timeout_seconds"])
 
     def state(self):
@@ -325,8 +401,10 @@ class Desk:
 
     def log(self, outcome, mode, **fields):
         t = self.now()
+        off = self.offset()
         rec = {"at": t.astimezone(NZ).isoformat(timespec="seconds") if NZ else None,
-               "at_utc": t.isoformat(timespec="seconds"), "outcome": outcome, "mode": mode}
+               "at_utc": t.isoformat(timespec="seconds"), "outcome": outcome, "mode": mode,
+               "clock_offset_s": round(off, 3) if off is not None else None}  # None: the box clock, unmeasured
         for k, v in fields.items():
             if v is not None:
                 rec[k] = scrub(v) if k == "reason" else v
@@ -425,9 +503,11 @@ class Desk:
                 if a.get("draft_id") == draft_id and a.get("sha256") == sha256:
                     return a
             t = self.now()
+            off = self.offset()
             rec = {"approval_id": secrets.token_hex(8), "draft_id": draft_id, "version": latest["version"], "sha256": sha256,
                    "to": latest["to"], "by": by.strip()[:500],
-                   "at": t.astimezone(NZ).isoformat(timespec="seconds") if NZ else None, "at_utc": t.isoformat(timespec="seconds")}
+                   "at": t.astimezone(NZ).isoformat(timespec="seconds") if NZ else None, "at_utc": t.isoformat(timespec="seconds"),
+                   "clock_offset_s": round(off, 3) if off is not None else None}
             append_line(self.approvals_path, rec)
             return rec
         finally:
@@ -437,6 +517,7 @@ class Desk:
     def run(self, test=False):
         """At most one email. Returns an exit code: 0 for sent, skipped or nothing to do; 2 for a problem."""
         mode = "test" if test else "live"
+        self._offset, self._offset_set = None, False  # each run measures the clock afresh
         fd = self.lock()
         if fd is None:
             self.log("SKIPPED_LOCKED", mode, reason="another sender run holds the lock")
@@ -458,6 +539,11 @@ class Desk:
         if test and not test_to:
             self.log("FAILED", mode, reason="test mode needs test_recipient in sender.json")
             return 2
+        ad = self.adapter(cfg)
+        why = self.measure_clock(cfg, ad)
+        if why:
+            self.log("SKIPPED_CLOCK", mode, reason=why)
+            return 2
         now = self.now()
         if not self.in_hours(cfg, now):
             self.log("SKIPPED_HOURS", mode, reason="outside NZ business hours (%s NZ)" % now.astimezone(NZ).strftime("%a %H:%M"))
@@ -473,11 +559,12 @@ class Desk:
             self.log("SKIPPED_GAP", mode, reason="last send %s NZ; next from %s NZ"
                      % (st.last_send.astimezone(NZ).strftime("%H:%M"), nxt))
             return 0
-        ad = self.adapter(cfg)
 
         # An unclear send is settled from Sent Items before anything else, and never retried.
         for u in st.unclear:
             since = parse_time(u.get("at_utc") or u.get("at")) - dt.timedelta(minutes=10)
+            if u.get("clock_offset_s") is None:  # logged on the box clock: widen the window by today's offset
+                since -= dt.timedelta(seconds=abs(self.offset() or 0))
             try:
                 hit = ad.find_in_sent(u.get("internet_message_id"), u.get("to", ""), u.get("subject", ""), since)
             except LookupFailed as e:
@@ -594,10 +681,37 @@ class Desk:
     def status(self):
         """Read-only. Creates nothing."""
         say = self.say
-        now = dt.datetime.now(UTC)
         say("## clock")
-        say("nz:  %s" % (now.astimezone(NZ).isoformat(timespec="seconds") if NZ else "UNKNOWN (no time zone data)"))
-        say("utc: %s" % now.isoformat(timespec="seconds"))
+        sys_t = self.system_now()
+        say("system_utc: %s (this computer's own clock)" % sys_t.isoformat(timespec="seconds"))
+        off, how = None, None
+        if os.path.exists(self.config_path):  # with no sender.json there's nothing to send, so no network either
+            cfg, _ = self.config()
+            if isinstance(cfg.get("time_sources"), list) and all(isinstance(u, str) and u.startswith("https://") for u in cfg["time_sources"]):
+                live, answers = self.read_clock(cfg, self.adapter(cfg))
+                for a in answers:
+                    say("source: %s %s" % (a.get("url"), ("%+.1f s (answer took %.1f s)" % (a["offset_s"], a.get("rtt_s") or 0))
+                                           if a.get("offset_s") is not None else "no answer: %s" % a.get("error")))
+                if live is not None:
+                    off, how = live, "measured just now (median of %d)" % sum(1 for a in answers if a.get("offset_s") is not None)
+        saved = self.saved_clock()
+        if saved:
+            say("saved: %+.1f s, measured %.0f min ago (%s)" % (saved["offset_s"], saved["age_s"] / 60, self.clock_path))
+            if off is None and saved["fresh"]:
+                off, how = saved["offset_s"], "saved %.0f min ago; no source answered just now" % (saved["age_s"] / 60)
+        else:
+            say("saved: none yet (%s)" % self.clock_path)
+        if off is None:
+            say("offset: UNKNOWN; a run would send nothing (SKIPPED_CLOCK)")
+        elif abs(off) > CLOCK_MAX_OFFSET_S:
+            say("offset: %+.1f s, %s: implausible (over 6 hours); a run would send nothing (SKIPPED_CLOCK)" % (off, how))
+        else:
+            say("offset: %+.1f s, %s%s" % (off, how, "" if abs(off) <= 30 else "; the box clock is wrong, the sender corrects for it"))
+        t = sys_t + dt.timedelta(seconds=off or 0)
+        tag = "(corrected)" if off is not None else "(the box clock, not corrected)"
+        say("nz:  %s %s" % (t.astimezone(NZ).isoformat(timespec="seconds") if NZ else "UNKNOWN (no time zone data)", tag))
+        say("utc: %s %s" % (t.isoformat(timespec="seconds"), tag))
+        say("corrected_epoch: %d" % int(t.timestamp()))
         say("## stop file")
         say(("present: " if os.path.exists(self.stopfile) else "absent: ") + self.stopfile)
         say("## lock")
@@ -680,7 +794,7 @@ def _outcomes(desk):
 
 
 def selfcheck(out=None):
-    """The SPEC checks 1, 2, 4, 5 and test mode, with a fake adapter in a temporary folder. Touches nothing real."""
+    """The SPEC checks 1, 2, 4, 5, test mode and the clock, with a fake adapter in a temporary folder. Touches nothing real."""
     out = out or sys.stdout
     if NZ is None:
         print("FAIL  no Pacific/Auckland time zone data", file=out)
@@ -792,11 +906,38 @@ def selfcheck(out=None):
         outs = _outcomes(d)
         assert "REFUSED_TEST_RECIPIENT" in outs and "SENT" in outs, "test mode log: %r" % outs
 
+    def cclock():
+        slow = -1932  # the Revenue Partner's box clock on 3 Nov 2026: 32 minutes behind
+        true_t = dt.datetime(2026, 11, 3, 8, 0, 30, tzinfo=NZ)  # 08:00:30 NZ, just open
+        clock = _Clock(true_t + dt.timedelta(seconds=slow))      # the box thinks it's 07:28
+        fake = FakeAdapter(clock_offset=-slow)
+        d = _fresh(tmp, "cclock", clock, fake)
+        for i in (1, 2):
+            v, h = d.register("cc-%d" % i, "partner%d@example.invalid" % i, "Hello %d" % i, body("Clock %d" % i))
+            d.approve("cc-%d" % i, h, "selfcheck")
+        d.run()
+        e = read_jsonl(d.log_path)[-1]
+        assert e["outcome"] == "SENT", "a slow box clock at 08:00 NZ didn't send: %s %s" % (e["outcome"], e.get("reason"))
+        assert e["at"].startswith("2026-11-03T08:00:30+13:00"), "the log time isn't the corrected NZ time: %s" % e["at"]
+        assert e.get("clock_offset_s") == 1932, "the log doesn't carry clock_offset_s"
+        clock.advance(14)
+        d.run()
+        assert _outcomes(d)[-1] == "SKIPPED_GAP", "the gap wasn't kept on corrected time"
+        clock.advance(1)
+        d.run()
+        assert _outcomes(d)[-1] == "SENT", "the second email didn't go 15 minutes later"
+        clock.t = dt.datetime(2026, 11, 3, 17, 0, 30, tzinfo=NZ) + dt.timedelta(seconds=slow)  # box says 16:28; really 17:00
+        v, h = d.register("cc-3", "partner3@example.invalid", "Hello 3", body("Clock 3"))
+        d.approve("cc-3", h, "selfcheck")
+        d.run()
+        assert _outcomes(d)[-1] == "SKIPPED_HOURS", "a slow box clock sent after 17:00 NZ"
+
     check("check 1: one sender (lock, one email per run)", c1)
     check("check 2: stop file", c2)
     check("check 4: only the latest draft", c4)
     check("check 5: each email once (and unclear sends)", c5)
     check("test mode: only the test address, even with the stop file", ct)
+    check("clock: a 32-minute-slow system clock still gives the right NZ hours and gap", cclock)
     shutil.rmtree(tmp, ignore_errors=True)
     for name, ok, why in results:
         print("%s  %s%s" % ("PASS" if ok else "FAIL", name, "" if ok else ": " + why), file=out)

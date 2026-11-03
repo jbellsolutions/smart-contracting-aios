@@ -9,5 +9,6 @@
   "business_end": "17:00",
   "min_gap_minutes": 15,
   "suppression_list": null,
-  "timeout_seconds": 30
+  "timeout_seconds": 30,
+  "time_sources": ["https://graph.microsoft.com/v1.0/", "https://login.microsoftonline.com/"]
 }
