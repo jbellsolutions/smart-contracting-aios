@@ -2,7 +2,7 @@
 // PreToolUse hook for Bash, PowerShell, Write/Edit and every connector (mcp__) tool. Exit 2 blocks the call and
 // tells Claude why. It guards against mistakes and injected instructions; it isn't a wall against someone with
 // a shell on this PC. What it enforces:
-// - Connector tools: only reads and drafts. A tool is allowed when its name's first verb is a read verb (get,
+// - Connector tools: only reads and drafts (the Claude app's own mcp__ccd_ tools are allowed). A tool is allowed when its name's first verb is a read verb (get,
 //   list, search, read…) or it makes a draft. Everything else (send, post, reply, create, a generic "execute"
 //   or an unknown verb) is blocked: this workspace drafts and Jesse sends. Browser clicking and typing are
 //   blocked; reading pages, scrolling and screenshots aren't. Registering a scheduled task is allowed (routines check STOP).
@@ -51,6 +51,10 @@ if (tool === "Bash" || tool === "PowerShell") {
   if (stopped && /--live\b|--send\b|\b(curl|wget|Invoke-RestMethod|Invoke-WebRequest|irm|iwr|ssh|scp|sftp|ftp|nc|telnet)\b/i.test(cmd)) block("state/STOP exists, so nothing goes out. Remove it only on Jesse's word.");
   process.exit(0);
 }
+
+// The Claude app's own tools (mcp__ccd_*: its task list, starting a new session in this folder) stay on this PC
+// and act on nothing outside it. A new session in this folder loads these same guards.
+if (/^mcp__ccd_/.test(tool)) process.exit(0);
 
 if (tool.startsWith("mcp__")) {
   const name = tool.split("__").slice(2).join("_") || tool;

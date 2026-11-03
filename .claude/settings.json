@@ -1,5 +1,15 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(node tools/setup_orgo.mjs)",
+      "PowerShell(node tools/setup_orgo.mjs)",
+      "Bash(node tools/build_subagents.mjs)",
+      "PowerShell(node tools/build_subagents.mjs)",
+      "Bash(node tools/build_manifest.mjs)",
+      "PowerShell(node tools/build_manifest.mjs)",
+      "Bash(node tools/check.mjs)",
+      "PowerShell(node tools/check.mjs)"
+    ],
     "deny": [
       "Read(./.env.local)",
       "Read(./.env)",

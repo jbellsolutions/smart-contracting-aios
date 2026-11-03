@@ -51,7 +51,7 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 
 ## 8. Slack
 - Jesse: Claude app → Settings → Connectors → Slack → Connect, and he signs in himself.
-- Check: read the latest message in #mike-and-jesse-drainage and quote its first line back. List the Slack tools you can see and log their names.
+- Check: read the latest message in the shared channel with Justin's team (ID `C0C2AM97R6Z`; it shows as #justin-bell-chat on Jesse's side and #mike-and-jesse-drainage on Justin's, so find it by the ID) and quote its first line back. List the Slack tools you can see and log their names.
 - Prove the connector guard: try Slack's send-message tool once, to Jesse's own DM, with the text "install test: if you can read this, the guard is off". It must be refused with "Blocked". If it went through, Jesse gets a harmless note to himself and the guard is off: stop and tell Justin's team. This workspace only ever reads and drafts through connectors.
 
 ## 9. The Orgo link
@@ -62,11 +62,11 @@ The rules that must always hold are hooks in `.claude/settings.json`, not just w
 - Then, while it's fresh: if `status` shows any timer or send-like process, or the stop file is absent, run `node tools/orgo.mjs hold` and go through each timer with Jesse using the "Changing the computer" steps in `skills/orgo-link/SKILL.md`. Sending stays off until `projects/revenue-partner-sends/SPEC.md` passes.
 
 ## 10. The team
-- `node tools/build_subagents.mjs` then `node tools/build_manifest.mjs`.
+- `node tools/build_subagents.mjs` then `node tools/build_manifest.mjs`. These two and `node tools/setup_orgo.mjs` are allowed in `.claude/settings.json`, so auto mode shouldn't stop them. If the app still asks or refuses, Jesse runs the same lines in his own PowerShell window in this folder and tells you when they're done.
 - Check: the first prints one subagent per active specialist; `.claude/agents/` has those files.
 
 ## 11. The self-check
-- `node tools/check.mjs`
+- `node tools/check.mjs` (Jesse runs it in his own window if the app refuses it)
 - Check: it prints `ok`. Anything else: fix what it names (it says which file and why), or log it for Justin's team.
 
 ## 12. Hand over

@@ -16,6 +16,9 @@ vault/partners/*
 vault/customers/*
 !vault/**/.gitkeep
 **/.obsidian/workspace*
+# Obsidian's own settings change as Jesse uses it; only the daily-notes setting is ours
+vault/.obsidian/*
+!vault/.obsidian/daily-notes.json
 *.zip
 private/
 CLIENT-CONTEXT.md
