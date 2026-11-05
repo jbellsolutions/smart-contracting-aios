@@ -58,6 +58,7 @@ if (tool === "Bash" || tool === "PowerShell") {
 // reads pass, anything that changes something is blocked and named, so Jesse can ask Justin's team to add it.
 const CCD_ALLOWED = [
   /^start_?session$/,
+  /^update_plan$/, // the app's task list: mcp__ccd_turn__update_plan (Jesse, Nov 5)
   /^wrap_?up(_session)?$/,
   /^(list|get|read|create|add|update|complete|check|write)_?(task|tasks|todo|todos|task_list)$/,
   /^(task|tasks|todo|todos|task_list)_?(list|get|read|create|add|update|complete|check|write)$/,
